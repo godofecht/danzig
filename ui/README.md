@@ -9,31 +9,32 @@ Beautiful, modern web interface for the DanzigGain audio processor. Works with b
 ✨ **Drag & Drop** - Drop WAV files directly on the interface  
 ✨ **Responsive Design** - Works on desktop and mobile  
 ✨ **Shared Between Modes** - Same UI for plugin and standalone  
+✨ **Native Zig Server** - Zero external dependencies, pure stdlib HTTP server
 
 ## Quick Start
 
-### Option 1: Standalone Mode (Recommended)
+### Zig Native HTTP Server (Recommended)
 
 ```bash
 # From the danzig project directory
-cd ui
-python3 server.py
+zig build -Doptimize=ReleaseFast
+./zig-out/bin/danzig-webui
 ```
 
-Then open http://localhost:8000 in your browser.
+Then open http://localhost:3000 in your browser.
 
-### Option 2: Standalone CLI + Web UI
+### With Standalone Audio Processing
 
 ```bash
 # Terminal 1: Start the web server
-cd ui
-python3 server.py
+zig build -Doptimize=ReleaseFast
+./zig-out/bin/danzig-webui
 
-# Terminal 2: Use the standalone audio processor
-../zig-out/bin/danzig-gain-standalone input.wav output.wav 6.0
+# Terminal 2: Use the standalone audio processor (if needed)
+./zig-out/bin/danzig-gain-standalone input.wav output.wav 6.0
 ```
 
-### Option 3: VST3 Plugin with UI
+### VST3 Plugin with UI
 
 The UI automatically detects when loaded as a VST3 plugin UI and switches to plugin mode (parameter only, no file processing).
 
@@ -79,6 +80,24 @@ The UI is mode-aware:
 └─────────────────────────────────────────┘
 ```
 
+## Server Implementation
+
+The HTTP server is implemented in pure Zig using `std.net`:
+
+- **Language**: Zig (no external dependencies)
+- **Port**: 3000 (configurable in `examples/danzig-webui/root.zig`)
+- **Features**: GET/POST/OPTIONS handling, CORS support, HTML embedding
+- **Startup**: `./zig-out/bin/danzig-webui` from project root
+- **Architecture**: Single-threaded TCP server (suitable for development/testing)
+
+### Server Source
+
+Located in `examples/danzig-webui/root.zig` - a self-contained HTTP server that:
+- Loads UI HTML at startup from `ui/index.html`
+- Serves GET requests with proper HTTP headers
+- Handles CORS for cross-origin requests
+- Prepared for audio processing API endpoints
+
 ## Styling
 
 The UI uses:
@@ -98,28 +117,7 @@ The UI uses:
 ## Files
 
 - `index.html` - Complete UI with embedded CSS and JavaScript
-- `server.py` - Python HTTP server with CORS support
-
-## Server
-
-The Python server:
-- Serves static files from the UI directory
-- Handles CORS for cross-origin requests
-- Ready for API endpoint expansion
-- No external dependencies required
-
-To run on a different port:
-
-```bash
-python3 -c "
-import http.server, socketserver
-PORT = 9000  # Change this
-Handler = http.server.SimpleHTTPRequestHandler
-with socketserver.TCPServer(('', PORT), Handler) as httpd:
-    print(f'Serving on port {PORT}...')
-    httpd.serve_forever()
-"
-```
+- `../examples/danzig-webui/root.zig` - Native Zig HTTP server
 
 ## Customization
 
@@ -130,26 +128,26 @@ Edit `index.html` to customize:
 - **Visualization**: Edit the `updateWaveformVisualization()` function
 - **Layout**: Adjust padding/margin/width as needed
 
+To change the server port, edit `const PORT` in `examples/danzig-webui/root.zig` and rebuild.
+
 ## API Integration
 
-The UI posts to `http://localhost:8765/process` when available. To connect your own backend:
+The UI is prepared for backend integration. To add audio processing endpoints:
 
-```javascript
-// In index.html, modify the fetch URL
-const response = await fetch('YOUR_SERVER/api/process', {
-    method: 'POST',
-    body: formData
-});
-```
+1. Edit `handleConnection()` in `examples/danzig-webui/root.zig`
+2. Add handlers for POST `/api/process`
+3. Integrate with danzig audio processing
+4. Rebuild: `zig build -Doptimize=ReleaseFast`
 
 ## Development
 
 To modify and test:
 
 1. Edit `index.html` directly (it's a single file)
-2. Run `python3 server.py`
-3. Refresh browser to see changes
-4. Browser DevTools (F12) shows any console errors
+2. Rebuild: `zig build -Doptimize=ReleaseFast`
+3. Run: `./zig-out/bin/danzig-webui`
+4. Refresh browser to see changes
+5. Browser DevTools (F12) shows any console errors
 
 ## License
 
@@ -158,3 +156,4 @@ Same as DanzigGain framework.
 ---
 
 **Ready to process audio!** 🎵
+
