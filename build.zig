@@ -50,6 +50,18 @@ pub fn build(b: *std.Build) void {
     danzig_gain_standalone.linkLibrary(danzig_lib);
     b.installArtifact(danzig_gain_standalone);
 
+    // Web UI server
+    const danzig_webui = b.addExecutable(.{
+        .name = "danzig-webui",
+        .root_source_file = b.path("examples/danzig-webui/root.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    danzig_webui.root_module.addImport("danzig", danzig_module);
+    danzig_webui.linkLibrary(danzig_lib);
+    b.installArtifact(danzig_webui);
+
     // Test step
     const test_step = b.step("test", "Run tests");
     const run_test = b.addRunArtifact(danzig_test);
