@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DanzigGain - Audio Processor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .control-group {
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e0e0e0;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: background 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #764ba2;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: background 0.2s;
+        }
+
+        input[type="range"]::-moz-range-thumb:hover {
+            background: #764ba2;
+        }
+
+        .gain-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f5f5f5;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+
+        .gain-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .gain-unit {
+            color: #999;
+            font-size: 12px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 12px 16px;
+            background: #f5f5f5;
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .file-input-label:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        input[type="file"]:disabled + .file-input-label {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .file-name {
+            color: #667eea;
+            font-weight: 500;
+            margin-top: 4px;
+        }
+
+        .file-info {
+            color: #999;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #e8e8e8;
+        }
+
+        .btn-secondary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            display: none;
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .status.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-left: 4px solid #4caf50;
+        }
+
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #f44336;
+        }
+
+        .status.loading {
+            background: #e3f2fd;
+            color: #1565c0;
+            border-left: 4px solid #2196f3;
+        }
+
+        .waveform-container {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .waveform {
+            width: 100%;
+            height: 100px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            padding: 8px;
+            gap: 2px;
+        }
+
+        .bar {
+            width: 2px;
+            background: #667eea;
+            border-radius: 1px;
+            opacity: 0.6;
+        }
+
+        .mode-indicator {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+
+        .mode-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .mode-badge.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(0,0,0,0.1);
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 0.6s linear infinite;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎵 DanzigGain</h1>
+            <p class="subtitle">Audio Gain Processor</p>
+        </header>
+
+        <div class="mode-indicator">
+            <div class="mode-badge active" id="modeVST">VST3 Plugin</div>
+            <div class="mode-badge" id="modeStandalone">Standalone</div>
+        </div>
+
+        <div class="control-group">
+            <label for="gainSlider">Gain (dB)</label>
+            <input type="range" id="gainSlider" min="-48" max="48" value="0" step="0.1">
+            <div class="gain-display">
+                <span class="gain-value" id="gainValue">0.0</span>
+                <span class="gain-unit">dB</span>
+            </div>
+        </div>
+
+        <div class="waveform-container" id="waveformContainer">
+            <div class="waveform" id="waveform"></div>
+        </div>
+
+        <div class="control-group" id="fileSection" style="display: none;">
+            <label>Audio File (32-bit float WAV)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInput" accept=".wav" disabled>
+                <label for="fileInput" class="file-input-label">
+                    <span id="fileLabel">Choose WAV file or drag here</span>
+                </label>
+            </div>
+            <div class="file-info" id="fileInfo"></div>
+        </div>
+
+        <div class="buttons" id="buttons">
+            <button class="btn-primary" id="processBtn" disabled>Process</button>
+            <button class="btn-secondary" id="resetBtn">Reset</button>
+        </div>
+
+        <div id="status" class="status"></div>
+    </div>
+
+    <script>
+        const gainSlider = document.getElementById('gainSlider');
+        const gainValue = document.getElementById('gainValue');
+        const fileInput = document.getElementById('fileInput');
+        const fileLabel = document.getElementById('fileLabel');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileSection = document.getElementById('fileSection');
+        const buttons = document.getElementById('buttons');
+        const processBtn = document.getElementById('processBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const statusDiv = document.getElementById('status');
+        const waveform = document.getElementById('waveform');
+        const modeVST = document.getElementById('modeVST');
+        const modeStandalone = document.getElementById('modeStandalone');
+        const waveformContainer = document.getElementById('waveformContainer');
+
+        let selectedFile = null;
+        let isVST3Mode = true;
+
+        // Update gain display
+        gainSlider.addEventListener('input', (e) => {
+            const gain = parseFloat(e.target.value);
+            gainValue.textContent = gain.toFixed(1);
+            
+            // Send to DAW/host if available
+            if (isVST3Mode && window.parent !== window) {
+                try {
+                    window.parent.postMessage({
+                        type: 'gainChange',
+                        gain: gain
+                    }, '*');
+                } catch (e) {}
+            }
+
+            updateWaveformVisualization();
+        });
+
+        // File input handling
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                selectedFile = file;
+                fileLabel.textContent = file.name;
+                fileInfo.textContent = `${(file.size / 1024).toFixed(1)} KB`;
+                processBtn.disabled = false;
+            }
+        });
+
+        // Drag and drop
+        document.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileInput.parentElement.style.background = '#f0f4ff';
+        });
+
+        document.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            fileInput.parentElement.style.background = '';
+        });
+
+        document.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                const event = new Event('change', { bubbles: true });
+                fileInput.dispatchEvent(event);
+            }
+        });
+
+        // Process button
+        processBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            const gain = parseFloat(gainSlider.value);
+            showStatus(`Processing... <span class="spinner"></span>`, 'loading');
+            processBtn.disabled = true;
+
+            try {
+                // Try to process via local server
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+                formData.append('gain', gain);
+
+                const response = await fetch('http://localhost:8765/process', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Processing failed');
+                }
+
+                const blob = await response.blob();
+                downloadFile(blob, `processed_${selectedFile.name}`);
+                showStatus('✓ File processed and downloaded successfully!', 'success');
+            } catch (error) {
+                showStatus(`✗ Error: ${error.message}. Make sure the standalone server is running.`, 'error');
+            }
+
+            processBtn.disabled = false;
+        });
+
+        // Reset button
+        resetBtn.addEventListener('click', () => {
+            gainSlider.value = '0';
+            gainValue.textContent = '0.0';
+            selectedFile = null;
+            fileLabel.textContent = 'Choose WAV file or drag here';
+            fileInfo.textContent = '';
+            fileInput.value = '';
+            processBtn.disabled = true;
+            statusDiv.textContent = '';
+            statusDiv.classList.remove('show');
+            updateWaveformVisualization();
+        });
+
+        // Status display
+        function showStatus(message, type) {
+            statusDiv.innerHTML = message;
+            statusDiv.className = `status show ${type}`;
+        }
+
+        // File download helper
+        function downloadFile(blob, filename) {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
+
+        // Waveform visualization
+        function updateWaveformVisualization() {
+            waveform.innerHTML = '';
+            const gain = parseFloat(gainSlider.value);
+            const barCount = 32;
+            
+            for (let i = 0; i < barCount; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'bar';
+                
+                // Base height with some randomness
+                let height = 20 + Math.random() * 60;
+                
+                // Affected by gain
+                height *= Math.pow(10, gain / 20);
+                height = Math.max(2, Math.min(100, height));
+                
+                bar.style.height = height + '%';
+                waveform.appendChild(bar);
+            }
+        }
+
+        // Check for VST3 mode
+        window.addEventListener('message', (e) => {
+            if (e.data && e.data.type === 'vstInitialize') {
+                isVST3Mode = true;
+                modeVST.classList.add('active');
+                modeStandalone.classList.remove('active');
+                fileSection.style.display = 'none';
+                buttons.style.display = 'none';
+            }
+        });
+
+        // Try to detect if running as standalone
+        setTimeout(() => {
+            if (window.parent === window) {
+                // Standalone mode
+                isVST3Mode = false;
+                modeVST.classList.remove('active');
+                modeStandalone.classList.add('active');
+                fileSection.style.display = 'block';
+                buttons.style.display = 'grid';
+                fileInput.disabled = false;
+            }
+        }, 1000);
+
+        // Initialize
+        updateWaveformVisualization();
+    </script>
+</body>
+</html>
