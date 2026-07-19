@@ -1,5 +1,8 @@
 # 🎵 Danzig VST3 Framework
 
+[![CI](https://github.com/godofecht/danzig/actions/workflows/ci.yml/badge.svg)](https://github.com/godofecht/danzig/actions/workflows/ci.yml)
+[![Zig](https://img.shields.io/badge/zig-0.14.1-f7a41d)](https://ziglang.org/)
+
 A modern, lightweight VST3 plugin development framework built in Zig with zero external dependencies.
 
 ## Project Status
