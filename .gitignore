@@ -1,0 +1,10 @@
+# Zig build output and cache
+zig-out/
+.zig-cache/
+zig-cache/
+
+# Built plugin bundles
+*.vst3/
+
+# macOS
+.DS_Store
