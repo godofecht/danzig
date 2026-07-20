@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
 
@@ -16,12 +16,14 @@ jobs:
         with:
           version: 0.14.1
 
-      # Zig cannot find libSystem on the macOS runners by itself. Without this
-      # even the build runner fails to link, with every libc symbol undefined:
-      #   error: undefined symbol: _malloc_size
-      #   note: referenced by .../build.o:_posix.abort
-      - name: Point Zig at the macOS SDK
-        run: echo "SDKROOT=$(xcrun --show-sdk-path)" >> "$GITHUB_ENV"
+      # Pinned to macos-15 rather than macos-latest. macos-latest now ships
+      # Xcode 26.5, whose SDK Zig 0.14.1 cannot link against: every libc
+      # symbol comes out undefined, and even the build runner fails to link.
+      # Setting SDKROOT does not help, since the SDK itself is the problem.
+      - name: Report toolchain
+        run: |
+          xcodebuild -version
+          echo "SDK: $(xcrun --show-sdk-path)"
 
       - name: Build
         run: zig build
