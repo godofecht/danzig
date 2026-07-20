@@ -16,6 +16,13 @@ jobs:
         with:
           version: 0.14.1
 
+      # Zig cannot find libSystem on the macOS runners by itself. Without this
+      # even the build runner fails to link, with every libc symbol undefined:
+      #   error: undefined symbol: _malloc_size
+      #   note: referenced by .../build.o:_posix.abort
+      - name: Point Zig at the macOS SDK
+        run: echo "SDKROOT=$(xcrun --show-sdk-path)" >> "$GITHUB_ENV"
+
       - name: Build
         run: zig build
 
