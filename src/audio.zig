@@ -6,7 +6,7 @@ pub const AudioBuffer = struct {
     channelCount: u32,
     sampleCount: u32,
     sampleRate: f64,
-    data: []*[*]f32,
+    data: [][*]f32,
 
     pub fn init(allocator: std.mem.Allocator, channelCount: u32, sampleCount: u32, sampleRate: f64) !AudioBuffer {
         const data = try allocator.alloc([*]f32, channelCount);
@@ -52,12 +52,14 @@ pub fn clamp(value: f32, min: f32, max: f32) f32 {
 }
 
 pub fn dBToLinear(dB: f32) f32 {
-    return @exp(dB * 0.11512925464970229 * 10.0);
+    // 10^(dB/20) = e^(dB * ln(10)/20)
+    return @exp(dB * 0.11512925464970229);
 }
 
 pub fn linearTodB(linear: f32) f32 {
+    // 20 * log10(linear) = 20/ln(10) * ln(linear)
     if (linear <= 0.0) return -80.0;
-    return @log(linear) * 8.6858896380650365 / 10.0;
+    return @log(linear) * 8.6858896380650365;
 }
 
 pub const GainProcessor = struct {
@@ -68,7 +70,7 @@ pub const GainProcessor = struct {
         self.targetGain = dBToLinear(gainDb);
     }
 
-    pub fn process(self: *GainProcessor, inputs: []*[*]f32, outputs: []*[*]f32, channelCount: u32, numSamples: u32) void {
+    pub fn process(self: *GainProcessor, inputs: [][*]f32, outputs: [][*]f32, channelCount: u32, numSamples: u32) void {
         for (0..channelCount) |ch| {
             for (0..numSamples) |s| {
                 self.gain = linearInterpolate(self.gain, self.targetGain, 0.001);
