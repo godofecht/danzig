@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.14.1
+
+      # Pinned to macos-15 rather than macos-latest. macos-latest now ships
+      # Xcode 26.5, whose SDK Zig 0.14.1 cannot link against: every libc
+      # symbol comes out undefined, and even the build runner fails to link.
+      # Setting SDKROOT does not help, since the SDK itself is the problem.
+      - name: Report toolchain
+        run: |
+          xcodebuild -version
+          echo "SDK: $(xcrun --show-sdk-path)"
+
+      - name: Build
+        run: zig build
+
+      # Drives the built plugin through the raw VST3 C ABI.
+      - name: Test
+        run: zig build test
