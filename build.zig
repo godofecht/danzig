@@ -62,9 +62,21 @@ pub fn build(b: *std.Build) void {
     danzig_webui.linkLibrary(danzig_lib);
     b.installArtifact(danzig_webui);
 
+    // Unit tests — pure Zig, no artifact or host required
+    const unit_tests = b.addTest(.{
+        .root_source_file = b.path("src/tests.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const run_unit_tests = b.addRunArtifact(unit_tests);
+
+    const unit_test_step = b.step("test-unit", "Run unit tests only");
+    unit_test_step.dependOn(&run_unit_tests.step);
+
     // Test step
     const test_step = b.step("test", "Run tests");
     const run_test = b.addRunArtifact(danzig_test);
+    test_step.dependOn(&run_unit_tests.step);
     test_step.dependOn(&run_test.step);
 }
 
