@@ -1,0 +1,18 @@
+.{
+    .name = .danzig,
+    .version = "0.1.0",
+    .fingerprint = 0x6383fbb1d610c5a6,
+    .dependencies = .{
+        .webview = .{
+            .url = "https://github.com/thechampagne/webview-zig/archive/5abc215.tar.gz",
+            .hash = "webview-0.1.0-ImQK_yb6IADsgQL8f72LGd4xkaSrxqQn9RyYy3U36s1J",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "examples",
+        "ui",
+    },
+}
