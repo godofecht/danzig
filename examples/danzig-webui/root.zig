@@ -41,7 +41,10 @@ pub fn main() !void {
 
 fn handleConnection(stream: std.net.Stream, html_content: []const u8) !void {
     var buffer: [8192]u8 = undefined;
-    const bytes_read = try stream.readAll(&buffer);
+    // A single read rather than readAll: readAll blocks until the buffer is
+    // full or the peer closes, which for a keep-alive HTTP client means
+    // hanging. It was also removed from net.Stream in Zig 0.15.
+    const bytes_read = try stream.read(&buffer);
 
     if (bytes_read == 0) return;
 

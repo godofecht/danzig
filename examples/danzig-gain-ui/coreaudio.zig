@@ -104,7 +104,10 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]AudioDevice {
     const default_input = getDefaultDevice(c.kAudioDevicePropertyScopeInput);
     const default_output = getDefaultDevice(c.kAudioDevicePropertyScopeOutput);
 
-    var devices = std.ArrayList(AudioDevice).init(allocator);
+    // Unmanaged form: Zig 0.15 made ArrayList unmanaged by default and
+    // dropped .init(allocator). ArrayListUnmanaged spells the same type in
+    // both 0.14 and 0.15, so the allocator is passed per call instead.
+    var devices: std.ArrayListUnmanaged(AudioDevice) = .{};
 
     for (device_ids) |did| {
         const input_channels = getChannelCount(did, c.kAudioDevicePropertyScopeInput);
@@ -128,15 +131,15 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]AudioDevice {
             dev.name_len = fallback.len;
         }
 
-        try devices.append(dev);
+        try devices.append(allocator, dev);
     }
 
-    return devices.toOwnedSlice();
+    return devices.toOwnedSlice(allocator);
 }
 
 pub fn devicesToJson(allocator: std.mem.Allocator, devices: []const AudioDevice) ![]u8 {
-    var json = std.ArrayList(u8).init(allocator);
-    const w = json.writer();
+    var json: std.ArrayListUnmanaged(u8) = .{};
+    var w = json.writer(allocator);
 
     try w.writeAll("{\"inputs\":[");
     var first_in = true;
@@ -164,5 +167,5 @@ pub fn devicesToJson(allocator: std.mem.Allocator, devices: []const AudioDevice)
     }
     try w.writeAll("]}");
 
-    return json.toOwnedSlice();
+    return json.toOwnedSlice(allocator);
 }
