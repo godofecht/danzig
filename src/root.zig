@@ -3,6 +3,7 @@
 pub const vst3 = @import("vst3.zig");
 pub const plugin = @import("plugin.zig");
 pub const audio = @import("audio.zig");
+pub const params = @import("params.zig");
 
 pub const Plugin = plugin.Plugin;
 pub const Parameter = plugin.Parameter;
@@ -13,6 +14,9 @@ pub const AudioBusInfo = plugin.AudioBusInfo;
 pub const AudioBuffer = audio.AudioBuffer;
 pub const GainProcessor = audio.GainProcessor;
 pub const SimpleRamp = audio.SimpleRamp;
+
+pub const AtomicParam = params.AtomicParam;
+pub const ParamStore = params.ParamStore;
 
 pub const normalize = plugin.normalize;
 pub const denormalize = plugin.denormalize;
