@@ -8,6 +8,7 @@ const std = @import("std");
 const testing = std.testing;
 
 const audio = @import("audio.zig");
+const params = @import("params.zig");
 const plugin = @import("plugin.zig");
 
 // --- dB <-> linear ---------------------------------------------------------
@@ -183,4 +184,110 @@ test "denormalize inverts normalize" {
         const n = plugin.normalize(plain, -48.0, 48.0);
         try testing.expectApproxEqAbs(plain, plugin.denormalize(n, -48.0, 48.0), 1e-9);
     }
+}
+
+// --- AtomicParam -----------------------------------------------------------
+
+test "AtomicParam: occupies exactly one cache line" {
+    try testing.expectEqual(@as(usize, 64), @sizeOf(params.AtomicParam));
+}
+
+test "AtomicParam: init seeds smoothed to the default plain value" {
+    var p = params.AtomicParam.init(-48.0, 48.0, 0.5, 0.0, 48000.0);
+    try testing.expectApproxEqAbs(@as(f32, 0.5), p.getNormalized(), 1e-6);
+    try testing.expectApproxEqAbs(@as(f32, 0.0), p.smoothed, 1e-4);
+}
+
+test "AtomicParam: setNormalized clamps to [0, 1]" {
+    var p = params.AtomicParam.init(0.0, 1.0, 0.5, 0.0, 48000.0);
+    p.setNormalized(2.0);
+    try testing.expectEqual(@as(f32, 1.0), p.getNormalized());
+    p.setNormalized(-1.0);
+    try testing.expectEqual(@as(f32, 0.0), p.getNormalized());
+}
+
+test "AtomicParam: getTargetPlain denormalizes into the declared range" {
+    var p = params.AtomicParam.init(100.0, 200.0, 0.0, 0.0, 48000.0);
+    p.setNormalized(0.25);
+    try testing.expectApproxEqAbs(@as(f32, 125.0), p.getTargetPlain(), 1e-4);
+}
+
+test "AtomicParam: zero smoothing makes tick jump straight to target" {
+    var p = params.AtomicParam.init(0.0, 10.0, 0.0, 0.0, 48000.0);
+    p.setNormalized(1.0);
+    try testing.expectApproxEqAbs(@as(f32, 10.0), p.tick(), 1e-4);
+}
+
+test "AtomicParam: smoothing approaches the target without overshooting" {
+    var p = params.AtomicParam.init(0.0, 1.0, 0.0, 50.0, 48000.0);
+    p.setNormalized(1.0);
+    try testing.expect(p.smooth_coeff > 0.0);
+
+    var prev: f32 = p.smoothed;
+    for (0..64) |_| {
+        const v = p.tick();
+        try testing.expect(v >= prev); // monotone
+        try testing.expect(v <= 1.0); // never overshoots
+        prev = v;
+    }
+    try testing.expect(prev > 0.0); // and it actually moved
+}
+
+test "AtomicParam: snap jumps smoothed to target immediately" {
+    var p = params.AtomicParam.init(0.0, 10.0, 0.0, 100.0, 48000.0);
+    p.setNormalized(1.0);
+    p.snap();
+    try testing.expectApproxEqAbs(@as(f32, 10.0), p.smoothed, 1e-4);
+}
+
+test "AtomicParam: setSmoothingMs treats non-positive input as instant" {
+    var p = params.AtomicParam.init(0.0, 1.0, 0.0, 10.0, 48000.0);
+    p.setSmoothingMs(0.0, 48000.0);
+    try testing.expectEqual(@as(f32, 0.0), p.smooth_coeff);
+    p.setSmoothingMs(10.0, 0.0);
+    try testing.expectEqual(@as(f32, 0.0), p.smooth_coeff);
+}
+
+// --- ParamStore ------------------------------------------------------------
+
+test "ParamStore: add returns sequential indices and tracks count" {
+    var store = params.ParamStore(8){};
+    try testing.expectEqual(@as(u32, 0), store.add(0.0, 1.0, 0.5, 0.0, 48000.0));
+    try testing.expectEqual(@as(u32, 1), store.add(-48.0, 48.0, 0.5, 0.0, 48000.0));
+    try testing.expectEqual(@as(u32, 2), store.count);
+}
+
+test "ParamStore: set and get round-trip by index" {
+    var store = params.ParamStore(4){};
+    const idx = store.add(0.0, 1.0, 0.5, 0.0, 48000.0);
+    store.setNormalized(idx, 0.25);
+    try testing.expectApproxEqAbs(@as(f32, 0.25), store.getNormalized(idx), 1e-6);
+}
+
+test "ParamStore: out-of-range index is ignored rather than trapping" {
+    var store = params.ParamStore(4){};
+    _ = store.add(0.0, 1.0, 0.5, 0.0, 48000.0);
+    store.setNormalized(99, 1.0); // no-op
+    try testing.expectEqual(@as(f32, 0.0), store.getNormalized(99));
+}
+
+test "ParamStore: tickAll advances every registered parameter" {
+    var store = params.ParamStore(4){};
+    const a = store.add(0.0, 10.0, 0.0, 0.0, 48000.0);
+    const b = store.add(0.0, 20.0, 0.0, 0.0, 48000.0);
+    store.setNormalized(a, 1.0);
+    store.setNormalized(b, 1.0);
+
+    store.tickAll();
+
+    try testing.expectApproxEqAbs(@as(f32, 10.0), store.getSmoothed(a), 1e-4);
+    try testing.expectApproxEqAbs(@as(f32, 20.0), store.getSmoothed(b), 1e-4);
+}
+
+test "ParamStore: snapAll jumps every smoothed value to its target" {
+    var store = params.ParamStore(4){};
+    const a = store.add(0.0, 10.0, 0.0, 500.0, 48000.0);
+    store.setNormalized(a, 1.0);
+    store.snapAll();
+    try testing.expectApproxEqAbs(@as(f32, 10.0), store.getSmoothed(a), 1e-4);
 }
