@@ -107,17 +107,17 @@ pub const ModuleInfo = extern struct {
 };
 
 const IUnknownVTable = extern struct {
-    queryInterface: *const fn (*anyopaque, guid: [*]const u8, obj: *?*anyopaque) callconv(.C) i32,
-    addRef: *const fn (*anyopaque) callconv(.C) u32,
-    release: *const fn (*anyopaque) callconv(.C) u32,
+    queryInterface: *const fn (*anyopaque, guid: [*]const u8, obj: *?*anyopaque) callconv(.c) i32,
+    addRef: *const fn (*anyopaque) callconv(.c) u32,
+    release: *const fn (*anyopaque) callconv(.c) u32,
 };
 
 const IPluginFactoryVTable = extern struct {
     base: IUnknownVTable,
-    getFactoryInfo: *const fn (*anyopaque, info: *anyopaque) callconv(.C) i32,
-    countClasses: *const fn (*anyopaque) callconv(.C) i32,
-    getClassInfo: *const fn (*anyopaque, index: i32, info: *anyopaque) callconv(.C) i32,
-    createInstance: *const fn (*anyopaque, cid: [*]const u8, iid: [*]const u8, obj: *?*anyopaque) callconv(.C) i32,
+    getFactoryInfo: *const fn (*anyopaque, info: *anyopaque) callconv(.c) i32,
+    countClasses: *const fn (*anyopaque) callconv(.c) i32,
+    getClassInfo: *const fn (*anyopaque, index: i32, info: *anyopaque) callconv(.c) i32,
+    createInstance: *const fn (*anyopaque, cid: [*]const u8, iid: [*]const u8, obj: *?*anyopaque) callconv(.c) i32,
 };
 
 pub const PluginFactory = extern struct {
@@ -127,40 +127,40 @@ pub const PluginFactory = extern struct {
 
 var gFactory: PluginFactory = undefined;
 
-fn factory_queryInterface(self: *anyopaque, guid: [*]const u8, obj: *?*anyopaque) callconv(.C) i32 {
+fn factory_queryInterface(self: *anyopaque, guid: [*]const u8, obj: *?*anyopaque) callconv(.c) i32 {
     _ = self;
     _ = guid;
     _ = obj;
     return -1; // kNoInterface
 }
 
-fn factory_addRef(self: *anyopaque) callconv(.C) u32 {
+fn factory_addRef(self: *anyopaque) callconv(.c) u32 {
     var factory = @as(*PluginFactory, @ptrCast(@alignCast(self)));
     factory.refCount += 1;
     return factory.refCount;
 }
 
-fn factory_release(self: *anyopaque) callconv(.C) u32 {
+fn factory_release(self: *anyopaque) callconv(.c) u32 {
     var factory = @as(*PluginFactory, @ptrCast(@alignCast(self)));
     if (factory.refCount > 0) factory.refCount -= 1;
     return factory.refCount;
 }
 
-fn factory_getFactoryInfo(self: *anyopaque, _: *anyopaque) callconv(.C) i32 {
+fn factory_getFactoryInfo(self: *anyopaque, _: *anyopaque) callconv(.c) i32 {
     _ = self;
     return 0;
 }
 
-fn factory_countClasses(_: *anyopaque) callconv(.C) i32 {
+fn factory_countClasses(_: *anyopaque) callconv(.c) i32 {
     return 1;
 }
 
-fn factory_getClassInfo(_: *anyopaque, index: i32, _: *anyopaque) callconv(.C) i32 {
+fn factory_getClassInfo(_: *anyopaque, index: i32, _: *anyopaque) callconv(.c) i32 {
     _ = index;
     return 0;
 }
 
-fn factory_createInstance(_: *anyopaque, _: [*]const u8, _: [*]const u8, _: *?*anyopaque) callconv(.C) i32 {
+fn factory_createInstance(_: *anyopaque, _: [*]const u8, _: [*]const u8, _: *?*anyopaque) callconv(.c) i32 {
     return 0;
 }
 
