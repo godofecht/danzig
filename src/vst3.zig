@@ -62,28 +62,28 @@ pub const ProcessContext = extern struct {
 };
 
 pub const IUnknown = extern struct {
-    queryInterface: *const fn (?*IUnknown, *const IID, ?*[*]?*anyopaque) callconv(.C) TResult = undefined,
-    addRef: *const fn (?*IUnknown) callconv(.C) u32 = undefined,
-    release: *const fn (?*IUnknown) callconv(.C) u32 = undefined,
+    queryInterface: *const fn (?*IUnknown, *const IID, ?*[*]?*anyopaque) callconv(.c) TResult = undefined,
+    addRef: *const fn (?*IUnknown) callconv(.c) u32 = undefined,
+    release: *const fn (?*IUnknown) callconv(.c) u32 = undefined,
 };
 
 pub const IPluginBase = extern struct {
     unknown: IUnknown,
-    initialize: *const fn (?*IPluginBase, ?*anyopaque) callconv(.C) TResult = undefined,
-    terminate: *const fn (?*IPluginBase) callconv(.C) TResult = undefined,
+    initialize: *const fn (?*IPluginBase, ?*anyopaque) callconv(.c) TResult = undefined,
+    terminate: *const fn (?*IPluginBase) callconv(.c) TResult = undefined,
 };
 
 pub const IComponent = extern struct {
     pluginBase: IPluginBase,
-    getControllerClassId: *const fn (?*IComponent, ?*CUID) callconv(.C) TResult = undefined,
-    setIoMode: *const fn (?*IComponent, i32) callconv(.C) TResult = undefined,
-    getBusCount: *const fn (?*IComponent, BusDirection, u32) callconv(.C) u32 = undefined,
-    getBusInfo: *const fn (?*IComponent, BusDirection, u32, ?*BusInfo) callconv(.C) TResult = undefined,
-    getRoutingInfo: *const fn (?*IComponent, ?*RoutingInfo, ?*RoutingInfo) callconv(.C) TResult = undefined,
-    activateBus: *const fn (?*IComponent, BusDirection, u32, u8) callconv(.C) TResult = undefined,
-    setActive: *const fn (?*IComponent, u8) callconv(.C) TResult = undefined,
-    setState: *const fn (?*IComponent, ?*anyopaque) callconv(.C) TResult = undefined,
-    getState: *const fn (?*IComponent, ?*anyopaque) callconv(.C) TResult = undefined,
+    getControllerClassId: *const fn (?*IComponent, ?*CUID) callconv(.c) TResult = undefined,
+    setIoMode: *const fn (?*IComponent, i32) callconv(.c) TResult = undefined,
+    getBusCount: *const fn (?*IComponent, BusDirection, u32) callconv(.c) u32 = undefined,
+    getBusInfo: *const fn (?*IComponent, BusDirection, u32, ?*BusInfo) callconv(.c) TResult = undefined,
+    getRoutingInfo: *const fn (?*IComponent, ?*RoutingInfo, ?*RoutingInfo) callconv(.c) TResult = undefined,
+    activateBus: *const fn (?*IComponent, BusDirection, u32, u8) callconv(.c) TResult = undefined,
+    setActive: *const fn (?*IComponent, u8) callconv(.c) TResult = undefined,
+    setState: *const fn (?*IComponent, ?*anyopaque) callconv(.c) TResult = undefined,
+    getState: *const fn (?*IComponent, ?*anyopaque) callconv(.c) TResult = undefined,
 };
 
 pub const BusInfo = extern struct {
@@ -101,17 +101,17 @@ pub const RoutingInfo = extern struct {
 };
 
 pub const IAudioProcessor = extern struct {
-    queryInterface: *const fn (?*IAudioProcessor, *const IID, ?*[*]?*anyopaque) callconv(.C) TResult = undefined,
-    addRef: *const fn (?*IAudioProcessor) callconv(.C) u32 = undefined,
-    release: *const fn (?*IAudioProcessor) callconv(.C) u32 = undefined,
-    setBusArrangements: *const fn (?*IAudioProcessor, [*]i64, u32, [*]i64, u32) callconv(.C) TResult = undefined,
-    getBusArrangement: *const fn (?*IAudioProcessor, i32, i32, [*]i64) callconv(.C) TResult = undefined,
-    canProcessSampleSize: *const fn (?*IAudioProcessor, i32) callconv(.C) TResult = undefined,
-    getLatencySamples: *const fn (?*IAudioProcessor) callconv(.C) u32 = undefined,
-    setupProcessing: *const fn (?*IAudioProcessor, ?*ProcessSetup) callconv(.C) TResult = undefined,
-    setProcessing: *const fn (?*IAudioProcessor, u8) callconv(.C) TResult = undefined,
-    process: *const fn (?*IAudioProcessor, ?*ProcessData) callconv(.C) TResult = undefined,
-    getTailSamples: *const fn (?*IAudioProcessor) callconv(.C) u32 = undefined,
+    queryInterface: *const fn (?*IAudioProcessor, *const IID, ?*[*]?*anyopaque) callconv(.c) TResult = undefined,
+    addRef: *const fn (?*IAudioProcessor) callconv(.c) u32 = undefined,
+    release: *const fn (?*IAudioProcessor) callconv(.c) u32 = undefined,
+    setBusArrangements: *const fn (?*IAudioProcessor, [*]i64, u32, [*]i64, u32) callconv(.c) TResult = undefined,
+    getBusArrangement: *const fn (?*IAudioProcessor, i32, i32, [*]i64) callconv(.c) TResult = undefined,
+    canProcessSampleSize: *const fn (?*IAudioProcessor, i32) callconv(.c) TResult = undefined,
+    getLatencySamples: *const fn (?*IAudioProcessor) callconv(.c) u32 = undefined,
+    setupProcessing: *const fn (?*IAudioProcessor, ?*ProcessSetup) callconv(.c) TResult = undefined,
+    setProcessing: *const fn (?*IAudioProcessor, u8) callconv(.c) TResult = undefined,
+    process: *const fn (?*IAudioProcessor, ?*ProcessData) callconv(.c) TResult = undefined,
+    getTailSamples: *const fn (?*IAudioProcessor) callconv(.c) u32 = undefined,
 };
 
 pub const ProcessSetup = extern struct {
@@ -123,19 +123,19 @@ pub const ProcessSetup = extern struct {
 
 pub const IEditController = extern struct {
     pluginBase: IPluginBase,
-    setComponentState: *const fn (?*IEditController, ?*anyopaque) callconv(.C) TResult = undefined,
-    setState: *const fn (?*IEditController, ?*anyopaque) callconv(.C) TResult = undefined,
-    getState: *const fn (?*IEditController, ?*anyopaque) callconv(.C) TResult = undefined,
-    getParameterCount: *const fn (?*IEditController) callconv(.C) i32 = undefined,
-    getParameterInfo: *const fn (?*IEditController, i32, ?*ParameterInfo) callconv(.C) TResult = undefined,
-    getParamStringByValue: *const fn (?*IEditController, i32, f64, [*]u16) callconv(.C) TResult = undefined,
-    getParamValueByString: *const fn (?*IEditController, i32, [*]const u16, [*]f64) callconv(.C) TResult = undefined,
-    normalizedParamToPlain: *const fn (?*IEditController, i32, f64) callconv(.C) f64 = undefined,
-    plainParamToNormalized: *const fn (?*IEditController, i32, f64) callconv(.C) f64 = undefined,
-    getParamNormalized: *const fn (?*IEditController, i32) callconv(.C) f64 = undefined,
-    setParamNormalized: *const fn (?*IEditController, i32, f64) callconv(.C) TResult = undefined,
-    setComponentHandler: *const fn (?*IEditController, ?*anyopaque) callconv(.C) TResult = undefined,
-    createView: *const fn (?*IEditController, [*:0]const u8) callconv(.C) ?*anyopaque = undefined,
+    setComponentState: *const fn (?*IEditController, ?*anyopaque) callconv(.c) TResult = undefined,
+    setState: *const fn (?*IEditController, ?*anyopaque) callconv(.c) TResult = undefined,
+    getState: *const fn (?*IEditController, ?*anyopaque) callconv(.c) TResult = undefined,
+    getParameterCount: *const fn (?*IEditController) callconv(.c) i32 = undefined,
+    getParameterInfo: *const fn (?*IEditController, i32, ?*ParameterInfo) callconv(.c) TResult = undefined,
+    getParamStringByValue: *const fn (?*IEditController, i32, f64, [*]u16) callconv(.c) TResult = undefined,
+    getParamValueByString: *const fn (?*IEditController, i32, [*]const u16, [*]f64) callconv(.c) TResult = undefined,
+    normalizedParamToPlain: *const fn (?*IEditController, i32, f64) callconv(.c) f64 = undefined,
+    plainParamToNormalized: *const fn (?*IEditController, i32, f64) callconv(.c) f64 = undefined,
+    getParamNormalized: *const fn (?*IEditController, i32) callconv(.c) f64 = undefined,
+    setParamNormalized: *const fn (?*IEditController, i32, f64) callconv(.c) TResult = undefined,
+    setComponentHandler: *const fn (?*IEditController, ?*anyopaque) callconv(.c) TResult = undefined,
+    createView: *const fn (?*IEditController, [*:0]const u8) callconv(.c) ?*anyopaque = undefined,
 };
 
 pub const ParameterInfo = extern struct {
