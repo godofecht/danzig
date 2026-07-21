@@ -17,7 +17,7 @@ pub fn main() !void {
     defer wv.destroy() catch {};
 
     try wv.setTitle("DanzigGain");
-    try wv.setSize(600, 700, .Fixed);
+    try wv.setSize(600, 700, .fixed);
 
     // Enumerate CoreAudio devices and inject into JS before loading UI
     const devices = coreaudio.enumerateDevices(allocator) catch &[_]coreaudio.AudioDevice{};

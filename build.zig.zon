@@ -4,8 +4,8 @@
     .fingerprint = 0x6383fbb1d610c5a6,
     .dependencies = .{
         .webview = .{
-            .url = "https://github.com/thechampagne/webview-zig/archive/5abc215.tar.gz",
-            .hash = "webview-0.1.0-ImQK_yb6IADsgQL8f72LGd4xkaSrxqQn9RyYy3U36s1J",
+            .url = "https://github.com/thechampagne/webview-zig/archive/a5eef0bbff65c914ea893dae0816b956bcdee6c6.tar.gz",
+            .hash = "webview-0.1.0-ImQK_8_aIABj-dmipgQ_Cw1trbEFExFQwMZetkgtT8fg",
         },
     },
     .paths = .{
