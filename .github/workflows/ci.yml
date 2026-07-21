@@ -9,12 +9,20 @@ on:
 jobs:
   build-and-test:
     runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        # The build files and sources use spellings valid in both: the
+        # root_module API, callconv(.c), ArrayListUnmanaged, and
+        # net.Stream.read. Testing both keeps that honest rather than assumed.
+        zig: ["0.14.1", "0.15.2"]
+    name: build-and-test (zig ${{ matrix.zig }})
     steps:
       - uses: actions/checkout@v4
 
       - uses: mlugg/setup-zig@v2
         with:
-          version: 0.14.1
+          version: ${{ matrix.zig }}
 
       # Pinned to macos-15 rather than macos-latest. macos-latest now ships
       # Xcode 26.5, whose SDK Zig 0.14.1 cannot link against: every libc

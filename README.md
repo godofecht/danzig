@@ -1,7 +1,7 @@
 # 🎵 Danzig VST3 Framework
 
 [![CI](https://github.com/godofecht/danzig/actions/workflows/ci.yml/badge.svg)](https://github.com/godofecht/danzig/actions/workflows/ci.yml)
-[![Zig](https://img.shields.io/badge/zig-0.14.1-f7a41d)](https://ziglang.org/)
+[![Zig](https://img.shields.io/badge/zig-0.14.1%20%7C%200.15.2-f7a41d)](https://ziglang.org/)
 
 A modern, lightweight VST3 plugin development framework built in Zig with zero external dependencies.
 
@@ -112,7 +112,7 @@ zig-out/
 
 ## System Requirements
 
-- Zig 0.12.0+
+- Zig 0.14.1 or 0.15.2
 - macOS (currently Mach-O format)
 - VST3-compatible DAW
 
@@ -154,7 +154,7 @@ See [PLUGINVAL_REPORT.md](PLUGINVAL_REPORT.md) for detailed validation results.
 
 ## License
 
-See main project root for license information.
+MIT. See [LICENSE](LICENSE).
 
 ---
 
