@@ -20,7 +20,7 @@ const ParamID = struct {
     pub const Bypass: u32 = 1;
 };
 
-var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+var gpa = std.heap.DebugAllocator(.{}){};
 var gPluginInstance: ?*GainPlugin = null;
 
 pub const GainPlugin = struct {
