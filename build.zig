@@ -85,6 +85,13 @@ pub fn build(b: *std.Build) void {
     const run_minimal_step = b.step("run-minimal", "Run the minimal plugin template offline");
     run_minimal_step.dependOn(&run_minimal.step);
 
+    // Two demo executables still call std APIs that Zig 0.16 removed:
+    // std.process.argsAlloc and std.fs.cwd. Porting them means threading an
+    // std.Io.Threaded handle through demo code, which buys nothing for the
+    // library itself, so they are skipped on 0.16 until that is worth doing.
+    // The library, the VST3 plugin and the whole test suite build there.
+    const demos_supported = @import("builtin").zig_version.minor < 16;
+    if (demos_supported) {
     // Standalone audio processor
     const danzig_gain_standalone = b.addExecutable(.{
         .name = "danzig-gain-standalone",
@@ -114,6 +121,7 @@ pub fn build(b: *std.Build) void {
     danzig_webui.root_module.addImport("danzig", danzig_module);
     danzig_webui.root_module.linkLibrary(danzig_lib);
     b.installArtifact(danzig_webui);
+    }
 
     // --- Universal VST3 bundle (macOS) ---------------------------------------
     //
