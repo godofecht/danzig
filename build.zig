@@ -38,7 +38,8 @@ pub fn build(b: *std.Build) void {
     // Install to zig-out/lib/
     b.installArtifact(danzig_gain);
 
-    // Test executable
+    // Integration harness. Links the plugin itself so it can call the exported
+    // GetPluginFactory entry point and drive it through the raw VST3 C ABI.
     const danzig_test = b.addExecutable(.{
         .name = "danzig_test",
         .root_module = b.createModule(.{
@@ -47,8 +48,42 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+    danzig_test.root_module.addImport("danzig", danzig_module);
     danzig_test.linkLibrary(danzig_lib);
+    danzig_test.linkLibrary(danzig_gain);
     b.installArtifact(danzig_test);
+
+    // Minimal plugin template. Built twice from one source: as the shared
+    // library a host would load, and as an executable so the DSP can be run
+    // and checked without a host.
+    const danzig_minimal = b.addLibrary(.{
+        .name = "DanzigMinimal",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("examples/danzig-minimal/root.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+        .linkage = .dynamic,
+    });
+    danzig_minimal.root_module.addImport("danzig", danzig_module);
+    danzig_minimal.linkLibrary(danzig_lib);
+    b.installArtifact(danzig_minimal);
+
+    const danzig_minimal_demo = b.addExecutable(.{
+        .name = "danzig-minimal",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("examples/danzig-minimal/root.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    danzig_minimal_demo.root_module.addImport("danzig", danzig_module);
+    danzig_minimal_demo.linkLibrary(danzig_lib);
+    b.installArtifact(danzig_minimal_demo);
+
+    const run_minimal = b.addRunArtifact(danzig_minimal_demo);
+    const run_minimal_step = b.step("run-minimal", "Run the minimal plugin template offline");
+    run_minimal_step.dependOn(&run_minimal.step);
 
     // Standalone audio processor
     const danzig_gain_standalone = b.addExecutable(.{

@@ -96,18 +96,23 @@ The `examples/danzig-gain` directory contains a complete stereo gain effect demo
 
 ```zig
 pub const GainPlugin = struct {
-    plugin: danzig.Plugin,
-    gainProcessor: danzig.GainProcessor,
-    
-    pub fn init(allocator: std.mem.Allocator) !*GainPlugin
-    pub fn process(self: *GainPlugin, inputs: []*[*]f32, outputs: []*[*]f32, numChannels: u32, numSamples: u32) void
-    pub fn setParameterNormalized(self: *GainPlugin, paramId: u32, normalized: f64) void
+    params: danzig.ParamStore(2),
+    sample_rate: f32,
+
+    pub fn init(sample_rate: f32) GainPlugin
+    pub fn setSampleRate(self: *GainPlugin, sample_rate: f32) void
+    pub fn isBypassed(self: *const GainPlugin) bool
+    pub fn nextGain(self: *GainPlugin, bypassed: bool) f32
 };
 ```
 
+The rest of the file wraps that core in the VST3 C ABI: one object exposing
+IComponent, IAudioProcessor and IEditController, a static IPluginFactory, and
+the module entry points (`GetPluginFactory`, `bundleEntry`) a host looks for.
+
 ### Parameter IDs
-- `ParamID.Gain = 0`: Gain in dB (-48 to +48)
-- `ParamID.Bypass = 1`: Bypass toggle
+- `ParamIndex.gain = 0`: Gain in dB (-48 to +48)
+- `ParamIndex.bypass = 1`: Bypass toggle
 
 ### Building
 ```bash
