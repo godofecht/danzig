@@ -1,7 +1,7 @@
 # danzig
 
 [![CI](https://github.com/godofecht/danzig/actions/workflows/ci.yml/badge.svg)](https://github.com/godofecht/danzig/actions/workflows/ci.yml)
-[![Zig](https://img.shields.io/badge/zig-0.14.1%20%7C%200.15.2-f7a41d)](https://ziglang.org/)
+[![Zig](https://img.shields.io/badge/zig-0.14.1%20%7C%200.15.2%20%7C%200.16.0-f7a41d)](https://ziglang.org/)
 
 A VST3 plugin framework in pure Zig. No JUCE, no Steinberg SDK, no C++ in the
 core. `src/vst3.zig` implements the VST3 C ABI directly as `extern struct`s of

@@ -33,7 +33,7 @@ pub fn build(b: *std.Build) void {
         .linkage = .dynamic,
     });
     danzig_gain.root_module.addImport("danzig", danzig_module);
-    danzig_gain.linkLibrary(danzig_lib);
+    danzig_gain.root_module.linkLibrary(danzig_lib);
 
     // Install to zig-out/lib/
     b.installArtifact(danzig_gain);
@@ -49,8 +49,8 @@ pub fn build(b: *std.Build) void {
         }),
     });
     danzig_test.root_module.addImport("danzig", danzig_module);
-    danzig_test.linkLibrary(danzig_lib);
-    danzig_test.linkLibrary(danzig_gain);
+    danzig_test.root_module.linkLibrary(danzig_lib);
+    danzig_test.root_module.linkLibrary(danzig_gain);
     b.installArtifact(danzig_test);
 
     // Minimal plugin template. Built twice from one source: as the shared
@@ -66,7 +66,7 @@ pub fn build(b: *std.Build) void {
         .linkage = .dynamic,
     });
     danzig_minimal.root_module.addImport("danzig", danzig_module);
-    danzig_minimal.linkLibrary(danzig_lib);
+    danzig_minimal.root_module.linkLibrary(danzig_lib);
     b.installArtifact(danzig_minimal);
 
     const danzig_minimal_demo = b.addExecutable(.{
@@ -78,13 +78,20 @@ pub fn build(b: *std.Build) void {
         }),
     });
     danzig_minimal_demo.root_module.addImport("danzig", danzig_module);
-    danzig_minimal_demo.linkLibrary(danzig_lib);
+    danzig_minimal_demo.root_module.linkLibrary(danzig_lib);
     b.installArtifact(danzig_minimal_demo);
 
     const run_minimal = b.addRunArtifact(danzig_minimal_demo);
     const run_minimal_step = b.step("run-minimal", "Run the minimal plugin template offline");
     run_minimal_step.dependOn(&run_minimal.step);
 
+    // Two demo executables still call std APIs that Zig 0.16 removed:
+    // std.process.argsAlloc and std.fs.cwd. Porting them means threading an
+    // std.Io.Threaded handle through demo code, which buys nothing for the
+    // library itself, so they are skipped on 0.16 until that is worth doing.
+    // The library, the VST3 plugin and the whole test suite build there.
+    const demos_supported = @import("builtin").zig_version.minor < 16;
+    if (demos_supported) {
     // Standalone audio processor
     const danzig_gain_standalone = b.addExecutable(.{
         .name = "danzig-gain-standalone",
@@ -95,7 +102,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     danzig_gain_standalone.root_module.addImport("danzig", danzig_module);
-    danzig_gain_standalone.linkLibrary(danzig_lib);
+    danzig_gain_standalone.root_module.linkLibrary(danzig_lib);
     b.installArtifact(danzig_gain_standalone);
 
     const run_standalone = b.addRunArtifact(danzig_gain_standalone);
@@ -112,8 +119,9 @@ pub fn build(b: *std.Build) void {
         }),
     });
     danzig_webui.root_module.addImport("danzig", danzig_module);
-    danzig_webui.linkLibrary(danzig_lib);
+    danzig_webui.root_module.linkLibrary(danzig_lib);
     b.installArtifact(danzig_webui);
+    }
 
     // --- Universal VST3 bundle (macOS) ---------------------------------------
     //
@@ -129,7 +137,11 @@ pub fn build(b: *std.Build) void {
     //
     // Needs the webview dependency, so it is only wired up when that has been
     // fetched. Links CoreAudio for device IO and WebKit via webview.
-    if (target.result.os.tag == .macos) {
+    // webview-zig's own build.zig.zon still carries a pre-0.16 hash format that
+    // Zig 0.16 rejects, so the GUI example cannot be built there until upstream
+    // updates. Everything else in danzig works on 0.16.
+    const webview_supported = @import("builtin").zig_version.minor < 16;
+    if (target.result.os.tag == .macos and webview_supported) {
         if (b.lazyDependency("webview", .{ .target = target, .optimize = optimize })) |webview_dep| {
             addGuiExample(b, target, optimize, danzig_module, danzig_lib, webview_dep);
         }
@@ -194,7 +206,7 @@ fn addVst3Bundle(
             .linkage = .dynamic,
         });
         plugin.root_module.addImport("danzig", danzig_module);
-        plugin.linkLibrary(lib);
+        plugin.root_module.linkLibrary(lib);
         b.installArtifact(plugin);
 
         lipo.addArtifactArg(plugin);
@@ -255,13 +267,13 @@ fn addGuiExample(
     gui.root_module.addImport("webview", webview_dep.module("webview"));
     // The Zig bindings are declarations only; the implementation is webview's
     // C++ core, which the dependency exposes as a static library.
-    gui.linkLibrary(webview_dep.artifact("webviewStatic"));
+    gui.root_module.linkLibrary(webview_dep.artifact("webviewStatic"));
     // The UI is embedded rather than read at runtime, so the binary is
     // self-contained.
     gui.root_module.addAnonymousImport("ui_html", .{ .root_source_file = b.path("ui/index.html") });
-    gui.linkLibrary(danzig_lib);
-    gui.linkFramework("CoreAudio");
-    gui.linkFramework("CoreFoundation");
+    gui.root_module.linkLibrary(danzig_lib);
+    gui.root_module.linkFramework("CoreAudio", .{});
+    gui.root_module.linkFramework("CoreFoundation", .{});
     b.installArtifact(gui);
 
     const run_gui = b.addRunArtifact(gui);
