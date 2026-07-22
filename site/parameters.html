@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Parameter System · danzig</title>
+<meta name="description" content="AtomicParam and ParamStore: lock-free parameters written by the UI thread and read by the audio thread, one cache line each.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav>
+  <a href="index.html" class="logo">danzig</a>
+  <div class="tagline">VST3 plugin framework in pure Zig</div>
+  <span class="version">v0.1.0</span>
+  <div class="section-label">Guide</div>
+  <a href="index.html">Overview</a>
+  <a href="architecture.html">Architecture</a>
+  <a href="getting-started.html">Getting Started</a>
+  <div class="section-label">Reference</div>
+  <a href="parameters.html" class="active">Parameters</a>
+  <a href="audio-helpers.html">Audio Helpers</a>
+  <a href="vst3-bundle.html">VST3 Bundle</a>
+  <div class="section-label">Project</div>
+  <a href="testing.html">Testing</a>
+  <a href="examples.html">Examples</a>
+  <a href="troubleshooting.html">Troubleshooting</a>
+  <a href="licensing.html">Licensing</a>
+  <div class="spacer"></div>
+  <div class="nav-footer">
+    <a href="https://github.com/godofecht/danzig">GitHub</a>
+    <a href="https://github.com/godofecht/zaza">Zaza</a>
+    <a href="https://github.com/godofecht/azazel">Azazel</a>
+  </div>
+</nav>
+<main>
+
+<h1 id="the-parameter-system">The Parameter System</h1>
+
+<p><code>src/params.zig</code>. Two types: <code>AtomicParam</code> for one value, <code>ParamStore(N)</code> for a
+fixed set of them.</p>
+
+<h3 id="the-problem">The problem</h3>
+
+<p>A parameter is written by one thread and read by another. The UI or the host
+automation lane writes; the audio callback reads. The audio callback cannot
+block, so a mutex is not available. It cannot allocate, so a queue that grows is
+not available either.</p>
+
+<p>The value is a single <code>f32</code>. A lock-free atomic is sufficient and is the whole
+solution.</p>
+
+<h3 id="atomicparam">AtomicParam</h3>
+
+<pre data-lang="zig"><code class="language-zig">pub const AtomicParam = extern struct {
+    raw: std.atomic.Value(u32) = ...,   // normalized [0, 1], bit-cast from f32
+    smoothed: f32 = 0.0,                // audio thread only
+    min: f32 = 0.0,
+    max: f32 = 1.0,
+    default_normalized: f32 = 0.5,
+    smooth_coeff: f32 = 0.0,
+    _pad: [40]u8 = undefined,           // pad to 64 bytes
+};</code></pre>
+
+<p>The writer side:</p>
+
+<pre data-lang="zig"><code class="language-zig">pub fn setNormalized(self: *Self, value: f32) void {
+    const clamped = std.math.clamp(value, 0.0, 1.0);
+    self.raw.store(@bitCast(clamped), .release);
+}</code></pre>
+
+<p>One clamp and one release store. Wait-free. The <code>f32</code> is bit-cast to <code>u32</code>
+because <code>std.atomic.Value</code> wants an integer, and a bit-cast of a clamped finite
+float is exact.</p>
+
+<p>The reader side runs once per sample:</p>
+
+<pre data-lang="zig"><code class="language-zig">pub fn tick(self: *Self) f32 {
+    const target = self.getTargetPlain();
+    if (self.smooth_coeff &lt;= 0.0) {
+        self.smoothed = target;
+    } else {
+        self.smoothed += (target - self.smoothed) * (1.0 - self.smooth_coeff);
+    }
+    return self.smoothed;
+}</code></pre>
+
+<p><code>getTargetPlain</code> does an acquire load, then denormalizes into <code>[min, max]</code>. The
+one-pole filter that follows turns a step into an exponential approach. The
+coefficient comes from a time constant in milliseconds:</p>
+
+<pre data-lang="zig"><code class="language-zig">self.smooth_coeff = @exp(-1000.0 / (ms * sample_rate));</code></pre>
+
+<p><code>smoothed</code> is deliberately non-atomic. Only the audio thread touches it.</p>
+
+<p>Use <code>snap()</code> to jump <code>smoothed</code> to the target with no ramp. That is what you
+want on preset load or transport relocation, where a ramp would be a glide.</p>
+
+<h3 id="why-exactly-one-cache-line">Why exactly one cache line</h3>
+
+<p><code>AtomicParam</code> is padded to 64 bytes and the size is enforced at compile time:</p>
+
+<pre data-lang="zig"><code class="language-zig">comptime {
+    if (@sizeOf(AtomicParam) != 64) {
+        @compileError("AtomicParam must be 64 bytes for cache line alignment");
+    }
+}</code></pre>
+
+<p>Without the padding, several parameters would share a cache line. When the UI
+thread stores to parameter 0, the cache coherence protocol invalidates the whole
+line on every other core. The audio thread reading parameter 1, which nobody
+wrote, would still take a coherence miss. This is false sharing, and it shows up
+as jitter in the audio callback rather than as a wrong answer, which makes it
+unpleasant to find.</p>
+
+<p>64 bytes is the line size on x86_64 and on Apple Silicon's L1 data cache. One
+parameter per line means a store to one parameter never disturbs the read of
+another. The cost is 40 wasted bytes per parameter. For 64 parameters that is
+2.5 KB of padding, which is nothing against the price of one stalled audio
+callback.</p>
+
+<p>The compile-time check exists so that adding a field silently breaks the build
+instead of silently reintroducing false sharing.</p>
+
+<p>There is a second, smaller reason for the fixed size. <code>extern struct</code> with a
+known size means <code>ParamStore(N)</code> is a flat <code>[N]AtomicParam</code> array, so parameter
+<code>i</code> is at a computable offset with no indirection.</p>
+
+<h3 id="paramstore">ParamStore</h3>
+
+<pre data-lang="zig"><code class="language-zig">var store = danzig.ParamStore(4){};
+const gain = store.add(-48.0, 48.0, 0.5, 20.0, 48000.0);
+//                     min    max   default  smooth_ms  sample_rate</code></pre>
+
+<p><code>add</code> returns the index and asserts you have not exceeded <code>N</code>. Call it during
+init only.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Call</th><th>Thread</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td><code>add(min, max, default, ms, sr)</code></td><td>init</td><td>Returns the index. Asserts on overflow.</td></tr>
+<tr><td><code>setNormalized(i, v)</code></td><td>host / UI</td><td>Ignores an out-of-range index rather than trapping.</td></tr>
+<tr><td><code>getNormalized(i)</code></td><td>any</td><td>Returns 0.0 for an out-of-range index.</td></tr>
+<tr><td><code>tick(i)</code></td><td>audio</td><td>Advances one sample, returns the plain value.</td></tr>
+<tr><td><code>tickAll()</code></td><td>audio</td><td>Advances every registered parameter.</td></tr>
+<tr><td><code>getSmoothed(i)</code></td><td>audio</td><td>Reads the last ticked value. Call after <code>tick</code>.</td></tr>
+<tr><td><code>snapAll()</code></td><td>audio</td><td>Jumps every smoothed value to its target.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>The out-of-range behaviour is deliberate. A host sending a stale parameter index
+during a preset change should not take down the audio thread.</p>
+
+<p>One gap to know about: <code>setSampleRate</code> is currently a no-op. If the sample rate
+changes, re-run <code>setSmoothingMs(ms, new_rate)</code> on each parameter, or rebuild the
+store in <code>setupProcessing</code>.</p>
+
+<div class="page-footer">
+  <a href="getting-started.html">&larr; Getting Started</a>
+  <a href="audio-helpers.html">Next: Audio Helpers &rarr;</a>
+</div>
+
+</main>
+</body>
+</html>
