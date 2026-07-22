@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Examples · danzig</title>
+<meta name="description" content="The six example directories in the danzig repository, what each one shows, and the command that runs it.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav>
+  <a href="index.html" class="logo">danzig</a>
+  <div class="tagline">VST3 plugin framework in pure Zig</div>
+  <span class="version">v0.1.0</span>
+  <div class="section-label">Guide</div>
+  <a href="index.html">Overview</a>
+  <a href="architecture.html">Architecture</a>
+  <a href="getting-started.html">Getting Started</a>
+  <div class="section-label">Reference</div>
+  <a href="parameters.html">Parameters</a>
+  <a href="audio-helpers.html">Audio Helpers</a>
+  <a href="vst3-bundle.html">VST3 Bundle</a>
+  <div class="section-label">Project</div>
+  <a href="testing.html">Testing</a>
+  <a href="examples.html" class="active">Examples</a>
+  <a href="troubleshooting.html">Troubleshooting</a>
+  <a href="licensing.html">Licensing</a>
+  <div class="spacer"></div>
+  <div class="nav-footer">
+    <a href="https://github.com/godofecht/danzig">GitHub</a>
+    <a href="https://github.com/godofecht/zaza">Zaza</a>
+    <a href="https://github.com/godofecht/azazel">Azazel</a>
+  </div>
+</nav>
+<main>
+
+<h1 id="examples">Examples</h1>
+
+<p>Each directory has its own README with the exact commands.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Example</th><th>What it shows</th><th>Run it</th></tr></thead>
+<tbody>
+<tr><td><code>examples/danzig-minimal</code></td><td>The smallest complete plugin. Start here.</td><td><code>zig build run-minimal</code></td></tr>
+<tr><td><code>examples/danzig-gain</code></td><td>A fuller plugin: <code>Plugin</code>, <code>ParameterMap</code>, <code>GainProcessor</code>, and a factory vtable.</td><td>Built into the <code>.vst3</code> bundle</td></tr>
+<tr><td><code>examples/danzig-test</code></td><td>Driving the plugin through the raw VST3 C ABI.</td><td><code>zig build test-integration</code></td></tr>
+<tr><td><code>examples/danzig-gain-standalone</code></td><td>Offline WAV processing with the DSP core.</td><td><code>zig build run-standalone</code></td></tr>
+<tr><td><code>examples/danzig-webui</code></td><td>A pure-<code>std.net</code> HTTP server serving the web UI.</td><td><code>./zig-out/bin/danzig-webui</code></td></tr>
+<tr><td><code>examples/danzig-gain-ui</code></td><td>A native macOS window: WebView UI plus CoreAudio device enumeration.</td><td><code>zig build run-gui</code></td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="page-footer">
+  <a href="testing.html">&larr; Testing</a>
+  <a href="troubleshooting.html">Next: Troubleshooting &rarr;</a>
+</div>
+
+</main>
+</body>
+</html>
