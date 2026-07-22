@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Testing · danzig</title>
+<meta name="description" content="The 35 unit tests, the VST3 ABI integration harness that drives the built plugin through the raw C ABI, and the CI matrix.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav>
+  <a href="index.html" class="logo">danzig</a>
+  <div class="tagline">VST3 plugin framework in pure Zig</div>
+  <span class="version">v0.1.0</span>
+  <div class="section-label">Guide</div>
+  <a href="index.html">Overview</a>
+  <a href="architecture.html">Architecture</a>
+  <a href="getting-started.html">Getting Started</a>
+  <div class="section-label">Reference</div>
+  <a href="parameters.html">Parameters</a>
+  <a href="audio-helpers.html">Audio Helpers</a>
+  <a href="vst3-bundle.html">VST3 Bundle</a>
+  <div class="section-label">Project</div>
+  <a href="testing.html" class="active">Testing</a>
+  <a href="examples.html">Examples</a>
+  <a href="troubleshooting.html">Troubleshooting</a>
+  <a href="licensing.html">Licensing</a>
+  <div class="spacer"></div>
+  <div class="nav-footer">
+    <a href="https://github.com/godofecht/danzig">GitHub</a>
+    <a href="https://github.com/godofecht/zaza">Zaza</a>
+    <a href="https://github.com/godofecht/azazel">Azazel</a>
+  </div>
+</nav>
+<main>
+
+<h1 id="testing">Testing</h1>
+
+<p>Two suites, one command.</p>
+
+<pre data-lang="bash"><code class="language-bash">zig build test --summary all</code></pre>
+
+<pre><code>Build Summary: 9/9 steps succeeded; 35/35 tests passed</code></pre>
+
+<h3 id="unit-tests">Unit tests</h3>
+
+<p><code>src/tests.zig</code>, 35 tests, run with <code>zig build test-unit</code>. No artifact and no
+host required. They cover:</p>
+
+<ul>
+<li>dB and linear conversion in both directions, including the round trip and the
+-80 dB floor.</li>
+<li><code>linearInterpolate</code> and <code>clamp</code> at endpoints and midpoints.</li>
+<li><code>AudioBuffer</code> init, zeroing, and clear.</li>
+<li><code>GainProcessor</code> dB conversion, normalized mapping, clamping, and that
+<code>process</code> ramps rather than jumping.</li>
+<li><code>SimpleRamp</code> instant mode, arrival at target, and restart on <code>setTarget</code>.</li>
+<li><code>normalize</code> and <code>denormalize</code>, including the degenerate zero-width range.</li>
+<li><code>AtomicParam</code>: the 64-byte size assertion, clamping, denormalization,
+instant mode, monotone non-overshooting smoothing, <code>snap</code>, and
+<code>setSmoothingMs</code> with non-positive input.</li>
+<li><code>ParamStore</code>: index allocation, round trip, out-of-range tolerance,
+<code>tickAll</code>, and <code>snapAll</code>.</li>
+</ul>
+
+<h3 id="vst3-abi-integration-harness">VST3 ABI integration harness</h3>
+
+<p><code>examples/danzig-test</code>, run with <code>zig build test-integration</code>. This one links
+the built <code>DanzigGain</code> plugin and calls into it the way a host does.</p>
+
+<pre><code>danzig integration harness
+
+VST3 factory ABI
+  ok    GetPluginFactory returns a non-null object
+  ok    countClasses reports one exported class
+  ok    addRef/release move the count by exactly one
+  ok    queryInterface for an unknown IID reports failure
+  ok    getFactoryInfo returns kResultOk
+  ok    getClassInfo(0) returns kResultOk
+
+danzig static library
+  ok    AudioBuffer reports its geometry
+  ok    dBToLinear(0 dB) is unity
+  ok    dBToLinear(+6 dB) is ~1.995
+  ok    ParamStore reaches +48 dB at full scale
+
+all integration checks passed</code></pre>
+
+<p>The harness declares its own copy of the <code>IPluginFactory</code> vtable rather than
+importing the plugin's Zig types. It reads the first word of the returned
+pointer as a vtable pointer and calls through the C function pointers. If the
+object layout ever stops matching what a host expects, the dereference fails
+here before it fails in a DAW.</p>
+
+<p>It returns a non-zero exit code on failure, so <code>zig build test</code> fails with it.</p>
+
+<h3 id="ci">CI</h3>
+
+<p><code>.github/workflows/ci.yml</code> runs <code>zig build</code> and <code>zig build test</code> on <code>macos-15</code>
+against both 0.14.1 and 0.15.2. The runner is pinned to <code>macos-15</code> rather than
+<code>macos-latest</code>, because <code>macos-latest</code> now ships an Xcode whose SDK Zig 0.14.1
+cannot link against.</p>
+
+<div class="page-footer">
+  <a href="vst3-bundle.html">&larr; VST3 Bundle</a>
+  <a href="examples.html">Next: Examples &rarr;</a>
+</div>
+
+</main>
+</body>
+</html>
