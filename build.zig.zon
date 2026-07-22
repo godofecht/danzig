@@ -6,6 +6,10 @@
         .webview = .{
             .url = "https://github.com/thechampagne/webview-zig/archive/a5eef0bbff65c914ea893dae0816b956bcdee6c6.tar.gz",
             .hash = "webview-0.1.0-ImQK_8_aIABj-dmipgQ_Cw1trbEFExFQwMZetkgtT8fg",
+            // Lazy so the GUI example is the only thing that pulls it. The
+            // package's own build.zig.zon carries a pre-0.16 hash format that
+            // 0.16 rejects, and an eager fetch would fail the whole build.
+            .lazy = true,
         },
     },
     .paths = .{
