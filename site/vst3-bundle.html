@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Building the Universal VST3 Bundle · danzig</title>
+<meta name="description" content="How zig build vst3 compiles both macOS architectures, merges them with lipo, and lays out the .vst3 bundle.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav>
+  <a href="index.html" class="logo">danzig</a>
+  <div class="tagline">VST3 plugin framework in pure Zig</div>
+  <span class="version">v0.1.0</span>
+  <div class="section-label">Guide</div>
+  <a href="index.html">Overview</a>
+  <a href="architecture.html">Architecture</a>
+  <a href="getting-started.html">Getting Started</a>
+  <div class="section-label">Reference</div>
+  <a href="parameters.html">Parameters</a>
+  <a href="audio-helpers.html">Audio Helpers</a>
+  <a href="vst3-bundle.html" class="active">VST3 Bundle</a>
+  <div class="section-label">Project</div>
+  <a href="testing.html">Testing</a>
+  <a href="examples.html">Examples</a>
+  <a href="troubleshooting.html">Troubleshooting</a>
+  <a href="licensing.html">Licensing</a>
+  <div class="spacer"></div>
+  <div class="nav-footer">
+    <a href="https://github.com/godofecht/danzig">GitHub</a>
+    <a href="https://github.com/godofecht/zaza">Zaza</a>
+    <a href="https://github.com/godofecht/azazel">Azazel</a>
+  </div>
+</nav>
+<main>
+
+<h1 id="building-the-universal-vst3-bundle">Building the Universal VST3 Bundle</h1>
+
+<p>macOS ships on two architectures. A plugin bundle holds one universal binary so
+that hosts of either architecture load the same file.</p>
+
+<pre data-lang="bash"><code class="language-bash">zig build vst3</code></pre>
+
+<p>That step, in <code>build.zig</code>, does four things.</p>
+
+<p><strong>1. Compiles the plugin twice.</strong> Once for <code>aarch64-macos</code> and once for
+<code>x86_64-macos</code>, via <code>b.resolveTargetQuery</code>. Zig cross-compiles both from
+whichever machine you are on, so no second toolchain is needed.</p>
+
+<pre data-lang="zig"><code class="language-zig">const arches = [_]std.Target.Cpu.Arch{ .aarch64, .x86_64 };
+const suffixes = [_][]const u8{ "arm64", "x86" };
+
+inline for (arches, suffixes) |arch, suffix| {
+    const arch_target = b.resolveTargetQuery(.{ .cpu_arch = arch, .os_tag = .macos });
+    // ... build danzig_&lt;suffix&gt; and DanzigGain_&lt;suffix&gt;
+    lipo.addArtifactArg(plugin);
+}</code></pre>
+
+<p><strong>2. Merges them with <code>lipo</code>.</strong> <code>b.addSystemCommand(&amp;.{ "lipo", "-create" })</code>
+collects both artifacts and writes one fat Mach-O into the build cache. The
+output path is a build-graph node, so the merge reruns only when an input
+changes.</p>
+
+<p><strong>3. Lays out the bundle.</strong> <code>b.addWriteFiles()</code> builds the directory:</p>
+
+<pre><code>DanzigGain.vst3/
+  Contents/
+    Info.plist          generated from a template in build.zig
+    PkgInfo             the 8 bytes "BNDL????"
+    MacOS/
+      DanzigGain        the universal binary, no file extension</code></pre>
+
+<p>The executable carries no extension. That is a bundle requirement, and it is why
+the lipo output is copied rather than installed under its library name.</p>
+
+<p><strong>4. Installs into <code>zig-out/</code>.</strong> The result is
+<code>zig-out/DanzigGain.vst3</code>.</p>
+
+<p>Then:</p>
+
+<pre data-lang="bash"><code class="language-bash">zig build install-vst3</code></pre>
+
+<p>removes any existing copy and copies the bundle to
+<code>$HOME/Library/Audio/Plug-Ins/VST3/DanzigGain.vst3</code>, which is where macOS hosts
+scan.</p>
+
+<p>The bundle is kept behind its own step rather than the default install because
+it doubles the compile work and only applies to macOS.</p>
+
+<p>Sizes, from a <code>ReleaseFast</code> build:</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Artifact</th><th>Size</th></tr></thead>
+<tbody>
+<tr><td><code>zig-out/DanzigGain.vst3/Contents/MacOS/DanzigGain</code></td><td>84 KB (universal)</td></tr>
+<tr><td><code>zig-out/lib/libDanzigGain.dylib</code></td><td>52 KB (arm64)</td></tr>
+<tr><td><code>zig-out/lib/libDanzigMinimal.dylib</code></td><td>52 KB (arm64)</td></tr>
+<tr><td><code>zig-out/bin/danzig-minimal</code></td><td>168 KB</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>The same artifacts in the default Debug build run about 1 to 2 MB each.</p>
+
+<div class="page-footer">
+  <a href="audio-helpers.html">&larr; Audio Helpers</a>
+  <a href="testing.html">Next: Testing &rarr;</a>
+</div>
+
+</main>
+</body>
+</html>

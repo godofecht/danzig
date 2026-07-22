@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Getting Started · danzig</title>
+<meta name="description" content="danzig prerequisites and a seven-step quickstart: clone, build, test, package the VST3 bundle, install it, and hear the DSP.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav>
+  <a href="index.html" class="logo">danzig</a>
+  <div class="tagline">VST3 plugin framework in pure Zig</div>
+  <span class="version">v0.1.0</span>
+  <div class="section-label">Guide</div>
+  <a href="index.html">Overview</a>
+  <a href="architecture.html">Architecture</a>
+  <a href="getting-started.html" class="active">Getting Started</a>
+  <div class="section-label">Reference</div>
+  <a href="parameters.html">Parameters</a>
+  <a href="audio-helpers.html">Audio Helpers</a>
+  <a href="vst3-bundle.html">VST3 Bundle</a>
+  <div class="section-label">Project</div>
+  <a href="testing.html">Testing</a>
+  <a href="examples.html">Examples</a>
+  <a href="troubleshooting.html">Troubleshooting</a>
+  <a href="licensing.html">Licensing</a>
+  <div class="spacer"></div>
+  <div class="nav-footer">
+    <a href="https://github.com/godofecht/danzig">GitHub</a>
+    <a href="https://github.com/godofecht/zaza">Zaza</a>
+    <a href="https://github.com/godofecht/azazel">Azazel</a>
+  </div>
+</nav>
+<main>
+
+<h1 id="getting-started">Getting Started</h1>
+
+<p class="page-subtitle">What you need installed, then five minutes from clone to an installed bundle.</p>
+
+<h2 id="prerequisites">Prerequisites</h2>
+
+<ul>
+<li><strong>Zig 0.14.1 or 0.15.2.</strong> Both are tested in CI on every push. The sources
+use spellings valid in both: the <code>root_module</code> build API, <code>callconv(.c)</code>,
+and <code>net.Stream.read</code>. Other versions may work and are unsupported.</li>
+<li><strong>macOS</strong> for the VST3 bundle, the <code>install-vst3</code> step, and the GUI example.</li>
+<li><strong>Xcode command line tools</strong>, for <code>lipo</code> and the macOS SDK.</li>
+<li><strong>A VST3 host</strong> if you want to scan the bundle.</li>
+</ul>
+
+<p>Nothing else. There is no CMake, no vendored SDK, and one optional Zig
+dependency (<code>webview</code>) that is fetched lazily and only when you build the GUI
+example.</p>
+
+<p>Install Zig with Homebrew or from ziglang.org:</p>
+
+<pre data-lang="bash"><code class="language-bash">brew install zig                # currently 0.15.2
+# or download 0.14.1 / 0.15.2 from https://ziglang.org/download/</code></pre>
+
+<h2 id="quickstart">Quickstart</h2>
+
+<p>Five minutes, from clone to an installed bundle.</p>
+
+<h3 id="1-clone-and-run-setup">1. Clone and run setup</h3>
+
+<pre data-lang="bash"><code class="language-bash">git clone https://github.com/godofecht/danzig
+cd danzig
+./setup.sh</code></pre>
+
+<p><code>setup.sh</code> checks your Zig version, builds, runs the tests, builds the universal
+bundle, and prints where it landed. It exits non-zero if any of that fails, and
+it is safe to run repeatedly. Add <code>--release</code> for a <code>ReleaseFast</code> build.</p>
+
+<p>If you prefer to do it by hand, the four commands are below.</p>
+
+<h3 id="2-build">2. Build</h3>
+
+<pre data-lang="bash"><code class="language-bash">zig build</code></pre>
+
+<pre><code>Build Summary: 29/29 steps succeeded</code></pre>
+
+<h3 id="3-test">3. Test</h3>
+
+<pre data-lang="bash"><code class="language-bash">zig build test --summary all</code></pre>
+
+<pre><code>Build Summary: 9/9 steps succeeded; 35/35 tests passed</code></pre>
+
+<h3 id="4-package-the-bundle">4. Package the bundle</h3>
+
+<pre data-lang="bash"><code class="language-bash">zig build vst3
+lipo -info zig-out/DanzigGain.vst3/Contents/MacOS/DanzigGain</code></pre>
+
+<pre><code>Architectures in the fat file: zig-out/DanzigGain.vst3/Contents/MacOS/DanzigGain are: x86_64 arm64</code></pre>
+
+<h3 id="5-install-it">5. Install it</h3>
+
+<pre data-lang="bash"><code class="language-bash">zig build install-vst3</code></pre>
+
+<p>This removes any previous copy and writes a fresh one to
+<code>~/Library/Audio/Plug-Ins/VST3/DanzigGain.vst3</code>. Verify it:</p>
+
+<pre data-lang="bash"><code class="language-bash">lipo -info ~/Library/Audio/Plug-Ins/VST3/DanzigGain.vst3/Contents/MacOS/DanzigGain</code></pre>
+
+<pre><code>Architectures in the fat file: /Users/you/Library/Audio/Plug-Ins/VST3/DanzigGain.vst3/Contents/MacOS/DanzigGain are: x86_64 arm64</code></pre>
+
+<h3 id="6-load-it-in-a-daw">6. Load it in a DAW</h3>
+
+<p>Restart your DAW so it rescans the plugin folder. As of today the scan finds the
+bundle and the entry point but reports no instantiable classes, for the reason
+described under <a href="index.html#current-state">Current state</a>. The bundle structure, the
+universal binary, the <code>Info.plist</code>, and the ad-hoc signature are all correct and
+verifiable:</p>
+
+<pre data-lang="bash"><code class="language-bash">codesign -dvv zig-out/DanzigGain.vst3</code></pre>
+
+<pre><code>Executable=.../zig-out/DanzigGain.vst3/Contents/MacOS/DanzigGain
+Identifier=libDanzigGain_arm64.dylib
+Format=bundle with Mach-O universal (x86_64 arm64)
+CodeDirectory v=20400 size=242 flags=0x20002(adhoc,linker-signed) hashes=4+0 location=embedded
+Signature=adhoc</code></pre>
+
+<h3 id="7-hear-the-dsp-without-a-daw">7. Hear the DSP without a DAW</h3>
+
+<pre data-lang="bash"><code class="language-bash">zig build run-minimal</code></pre>
+
+<pre><code>danzig-minimal: one parameter, one line of DSP
+
+Trim range is -24 to +24 dB, 20 ms smoothing, 48 kHz.
+
+  full cut     normalized 0.00  -&gt;   -24.00 dB  (output 0.0631)
+  unity        normalized 0.50  -&gt;     0.00 dB  (output 1.0000)
+  full boost   normalized 1.00  -&gt;    24.00 dB  (output 15.8473)
+
+Copy examples/danzig-minimal/root.zig to start your own plugin.</code></pre>
+
+<p>That file is the template. Copy it and start editing <code>process</code>.</p>
+
+<div class="page-footer">
+  <a href="architecture.html">&larr; Architecture</a>
+  <a href="parameters.html">Next: Parameters &rarr;</a>
+</div>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Troubleshooting · danzig</title>
+<meta name="description" content="Fixes for link errors, single-architecture bundles, DAW scan failures, the web UI and GUI examples, and parameter clicks.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav>
+  <a href="index.html" class="logo">danzig</a>
+  <div class="tagline">VST3 plugin framework in pure Zig</div>
+  <span class="version">v0.1.0</span>
+  <div class="section-label">Guide</div>
+  <a href="index.html">Overview</a>
+  <a href="architecture.html">Architecture</a>
+  <a href="getting-started.html">Getting Started</a>
+  <div class="section-label">Reference</div>
+  <a href="parameters.html">Parameters</a>
+  <a href="audio-helpers.html">Audio Helpers</a>
+  <a href="vst3-bundle.html">VST3 Bundle</a>
+  <div class="section-label">Project</div>
+  <a href="testing.html">Testing</a>
+  <a href="examples.html">Examples</a>
+  <a href="troubleshooting.html" class="active">Troubleshooting</a>
+  <a href="licensing.html">Licensing</a>
+  <div class="spacer"></div>
+  <div class="nav-footer">
+    <a href="https://github.com/godofecht/danzig">GitHub</a>
+    <a href="https://github.com/godofecht/zaza">Zaza</a>
+    <a href="https://github.com/godofecht/azazel">Azazel</a>
+  </div>
+</nav>
+<main>
+
+<h1 id="troubleshooting">Troubleshooting</h1>
+
+<h3 id="zig-build-fails-with-undefined-libc-symbols"><code>zig build</code> fails with undefined libc symbols</h3>
+
+<p>Zig 0.14.1 cannot link against the SDK shipped with Xcode 26. Either use Zig
+0.15.2 or install an older SDK. Setting <code>SDKROOT</code> does not help, because the SDK
+itself is the incompatibility.</p>
+
+<p>Check which SDK you have:</p>
+
+<pre data-lang="bash"><code class="language-bash">xcodebuild -version
+xcrun --show-sdk-path</code></pre>
+
+<h3 id="lipo--info-reports-only-one-architecture"><code>lipo -info</code> reports only one architecture</h3>
+
+<p>You looked at <code>zig-out/lib/libDanzigGain.dylib</code>, which is the native-only build.
+The universal binary is inside the bundle:</p>
+
+<pre data-lang="bash"><code class="language-bash">lipo -info zig-out/DanzigGain.vst3/Contents/MacOS/DanzigGain</code></pre>
+
+<p>If the bundle itself is single-architecture, <code>zig build vst3</code> did not run.
+<code>zig build</code> alone does not produce the bundle.</p>
+
+<h3 id="the-daw-does-not-list-the-plugin">The DAW does not list the plugin</h3>
+
+<p>Expected today. See <a href="index.html#current-state">Current state</a>. The factory's
+<code>getClassInfo</code> and <code>createInstance</code> are stubs, so a host finds zero classes.
+Confirm the bundle is otherwise sound:</p>
+
+<pre data-lang="bash"><code class="language-bash">nm -gU zig-out/DanzigGain.vst3/Contents/MacOS/DanzigGain | grep -i factory</code></pre>
+
+<pre><code>00000000000004c8 T _GetPluginFactory</code></pre>
+
+<h3 id="danzig-webui-starts-but-the-browser-shows-nothing"><code>danzig-webui</code> starts but the browser shows nothing</h3>
+
+<p>The server binds <code>127.0.0.1:3000</code>. If something else already holds that port you
+will reach the other service instead. Check with:</p>
+
+<pre data-lang="bash"><code class="language-bash">lsof -nP -iTCP:3000 -sTCP:LISTEN</code></pre>
+
+<p>The port is a constant in <code>examples/danzig-webui/root.zig</code>. Change it and
+rebuild.</p>
+
+<h3 id="danzig-webui-exits-with-an-error-about-uiindexhtml"><code>danzig-webui</code> exits with an error about <code>ui/index.html</code></h3>
+
+<p>It reads the UI from a relative path at startup, so it has to be run from the
+repository root:</p>
+
+<pre data-lang="bash"><code class="language-bash">cd /path/to/danzig
+./zig-out/bin/danzig-webui</code></pre>
+
+<h3 id="danzig-gain-standalone-rejects-the-input-file"><code>danzig-gain-standalone</code> rejects the input file</h3>
+
+<p>It handles 32-bit float PCM WAV only, with a canonical 44-byte header. Anything
+else gives <code>Only 32-bit float PCM WAV files are supported</code>. To make a test file
+without extra tools:</p>
+
+<pre data-lang="bash"><code class="language-bash">python3 - &lt;&lt;'PY'
+import struct, math
+sr, n, ch = 48000, 48000, 1
+data = b''.join(struct.pack('&lt;f', 0.5 * math.sin(2 * math.pi * 440 * i / sr)) for i in range(n))
+hdr = struct.pack('&lt;4sI4s4sIHHIIHH4sI', b'RIFF', 36 + len(data), b'WAVE', b'fmt ',
+                  16, 1, ch, sr, sr * ch * 4, ch * 4, 32, b'data', len(data))
+open('sine.wav', 'wb').write(hdr + data)
+PY</code></pre>
+
+<h3 id="the-gui-example-does-not-build">The GUI example does not build</h3>
+
+<p>It needs the <code>webview</code> dependency, which Zig fetches lazily. Run <code>zig build</code>
+once with a network connection. On macOS it also links <code>CoreAudio</code> and
+<code>CoreFoundation</code>, so the command line tools must be installed.</p>
+
+<h3 id="zig-build--dtarget-fails-on-webviewstatic"><code>zig build -Dtarget=...</code> fails on <code>webviewStatic</code></h3>
+
+<pre><code>error: unable to find framework 'WebKit'. searched paths:  none</code></pre>
+
+<p>The GUI example's <code>webview</code> dependency is C++ and links WebKit, which does not
+cross-compile. The Zig code does cross-compile fine, which is why
+<code>zig build vst3</code> produces both architectures. Build the library and the
+non-GUI examples for another target directly, or build natively.</p>
+
+<h3 id="atomicparam-must-be-64-bytes-for-cache-line-alignment"><code>AtomicParam must be 64 bytes for cache line alignment</code></h3>
+
+<p>You added or resized a field in <code>AtomicParam</code> without adjusting <code>_pad</code>. Shrink
+<code>_pad</code> by the number of bytes you added. The check is there on purpose. See
+<a href="parameters.html#why-exactly-one-cache-line">Why exactly one cache line</a>.</p>
+
+<h3 id="a-parameter-change-clicks">A parameter change clicks</h3>
+
+<p>The parameter has no smoothing. Pass a non-zero <code>smooth_ms</code> to <code>add</code>:</p>
+
+<pre data-lang="zig"><code class="language-zig">_ = store.add(-24.0, 24.0, 0.5, 20.0, sample_rate);
+//                                ^^^^ 20 ms one-pole ramp</code></pre>
+
+<p>Then read it with <code>tick</code> inside the per-sample loop rather than once per block.</p>
+
+<div class="page-footer">
+  <a href="examples.html">&larr; Examples</a>
+  <a href="licensing.html">Next: Licensing &rarr;</a>
+</div>
+
+</main>
+</body>
+</html>

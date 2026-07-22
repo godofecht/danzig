@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Audio Helpers · danzig</title>
+<meta name="description" content="dBToLinear, linearTodB, GainProcessor, SimpleRamp, and AudioBuffer, the small dependency-free DSP helpers in src/audio.zig.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav>
+  <a href="index.html" class="logo">danzig</a>
+  <div class="tagline">VST3 plugin framework in pure Zig</div>
+  <span class="version">v0.1.0</span>
+  <div class="section-label">Guide</div>
+  <a href="index.html">Overview</a>
+  <a href="architecture.html">Architecture</a>
+  <a href="getting-started.html">Getting Started</a>
+  <div class="section-label">Reference</div>
+  <a href="parameters.html">Parameters</a>
+  <a href="audio-helpers.html" class="active">Audio Helpers</a>
+  <a href="vst3-bundle.html">VST3 Bundle</a>
+  <div class="section-label">Project</div>
+  <a href="testing.html">Testing</a>
+  <a href="examples.html">Examples</a>
+  <a href="troubleshooting.html">Troubleshooting</a>
+  <a href="licensing.html">Licensing</a>
+  <div class="spacer"></div>
+  <div class="nav-footer">
+    <a href="https://github.com/godofecht/danzig">GitHub</a>
+    <a href="https://github.com/godofecht/zaza">Zaza</a>
+    <a href="https://github.com/godofecht/azazel">Azazel</a>
+  </div>
+</nav>
+<main>
+
+<h1 id="the-audio-helpers">The Audio Helpers</h1>
+
+<p><code>src/audio.zig</code>. Small, dependency-free, and covered by the unit tests.</p>
+
+<h3 id="dbtolinear-and-lineartodb">dBToLinear and linearTodB</h3>
+
+<pre data-lang="zig"><code class="language-zig">pub fn dBToLinear(dB: f32) f32 {
+    return @exp(dB * 0.11512925464970229);   // ln(10)/20
+}
+
+pub fn linearTodB(linear: f32) f32 {
+    if (linear &lt;= 0.0) return -80.0;
+    return @log(linear) * 8.6858896380650365; // 20/ln(10)
+}</code></pre>
+
+<p>Both avoid <code>pow</code> and <code>log10</code> in favour of a single <code>exp</code> or <code>log</code> and a
+multiply. <code>linearTodB</code> floors at -80 dB for non-positive input, so silence
+returns a finite number rather than negative infinity.</p>
+
+<p>The constants are worth a test of their own, and they have one. A previous copy
+of this file carried a stray factor of ten in the exponent, which turned
+<code>dBToLinear(6)</code> into 1000.0 instead of 1.9953. <code>src/tests.zig</code> now checks unity
+at 0 dB, the factor of two at +6 dB, the factor of ten at +20 dB, and a full
+round trip across -48 to +24 dB.</p>
+
+<h3 id="gainprocessor">GainProcessor</h3>
+
+<p>A gain stage with a built-in ramp.</p>
+
+<pre data-lang="zig"><code class="language-zig">var g = danzig.GainProcessor{};
+g.setGain(6.0);                            // dB
+g.process(&amp;inputs, &amp;outputs, channels, frames);</code></pre>
+
+<p><code>setGain</code> converts to a linear target. <code>process</code> interpolates the current gain
+toward the target by a fixed 0.001 per sample, so a change takes roughly a
+thousand samples to substantially complete. <code>setNormalizedGain</code> maps <code>[0, 1]</code>
+onto -48 to +48 dB, which is the range the example plugin exposes.</p>
+
+<p>The interpolation coefficient is fixed and not sample-rate aware. For a
+rate-independent ramp, use <code>AtomicParam</code> with a millisecond time constant
+instead.</p>
+
+<h3 id="simpleramp">SimpleRamp</h3>
+
+<p>A linear ramp over a sample count, for anything that is not a gain.</p>
+
+<pre data-lang="zig"><code class="language-zig">var r = danzig.SimpleRamp.init(0.0, 8);   // start value, ramp length in samples
+r.setTarget(1.0);
+for (0..8) |_| _ = r.next();
+// r.getValue() == 1.0</code></pre>
+
+<p><code>setTarget</code> restarts the ramp from the current value. A ramp length of zero or
+one is treated as instant. The final sample is snapped to the target exactly, so
+the ramp does not leave a residue.</p>
+
+<h3 id="audiobuffer">AudioBuffer</h3>
+
+<p>An owned multi-channel buffer, for offline work and tests. It allocates, so keep
+it off the audio thread.</p>
+
+<pre data-lang="zig"><code class="language-zig">var buf = try danzig.AudioBuffer.init(allocator, 2, 512, 48000.0);
+defer buf.deinit(allocator);
+buf.clear();</code></pre>
+
+<p><code>init</code> zeroes every channel. <code>clear</code> and its alias <code>silence</code> re-zero.</p>
+
+<div class="page-footer">
+  <a href="parameters.html">&larr; Parameters</a>
+  <a href="vst3-bundle.html">Next: VST3 Bundle &rarr;</a>
+</div>
+
+</main>
+</body>
+</html>
