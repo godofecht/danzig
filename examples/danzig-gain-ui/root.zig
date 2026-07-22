@@ -8,7 +8,7 @@ const coreaudio = @import("coreaudio");
 
 const UI_HTML: [:0]const u8 = @embedFile("ui_html");
 
-var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+var gpa = std.heap.DebugAllocator(.{}){};
 
 pub fn main() !void {
     const allocator = gpa.allocator();
