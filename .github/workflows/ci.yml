@@ -15,7 +15,7 @@ jobs:
         # The build files and sources use spellings valid in both: the
         # root_module API, callconv(.c), ArrayListUnmanaged, and
         # net.Stream.read. Testing both keeps that honest rather than assumed.
-        zig: ["0.14.1", "0.15.2"]
+        zig: ["0.14.1", "0.15.2", "0.16.0"]
     name: build-and-test (zig ${{ matrix.zig }})
     steps:
       - uses: actions/checkout@v4
