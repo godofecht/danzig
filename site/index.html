@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>danzig · VST3 plugin framework in pure Zig</title>
+<meta name="description" content="A VST3 plugin framework written in pure Zig. No JUCE. No Steinberg SDK. No C++ at all in the core.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav>
+  <a href="index.html" class="logo">danzig</a>
+  <div class="tagline">VST3 plugin framework in pure Zig</div>
+  <span class="version">v0.1.0</span>
+  <div class="section-label">Guide</div>
+  <a href="index.html" class="active">Overview</a>
+  <a href="architecture.html">Architecture</a>
+  <a href="getting-started.html">Getting Started</a>
+  <div class="section-label">Reference</div>
+  <a href="parameters.html">Parameters</a>
+  <a href="audio-helpers.html">Audio Helpers</a>
+  <a href="vst3-bundle.html">VST3 Bundle</a>
+  <div class="section-label">Project</div>
+  <a href="testing.html">Testing</a>
+  <a href="examples.html">Examples</a>
+  <a href="troubleshooting.html">Troubleshooting</a>
+  <a href="licensing.html">Licensing</a>
+  <div class="spacer"></div>
+  <div class="nav-footer">
+    <a href="https://github.com/godofecht/danzig">GitHub</a>
+    <a href="https://github.com/godofecht/zaza">Zaza</a>
+    <a href="https://github.com/godofecht/azazel">Azazel</a>
+  </div>
+</nav>
+<main>
+
+<div class="hero">
+  <h1 id="danzig">danzig</h1>
+  <p class="hero-sub">A VST3 plugin framework written in pure Zig. No JUCE. No Steinberg SDK. No C++
+at all in the core.</p>
+</div>
+
+<p>Source: <a href="https://github.com/godofecht/danzig">github.com/godofecht/danzig</a></p>
+
+<h2 id="what-danzig-is">What danzig is</h2>
+
+<p>VST3 is a C ABI dressed up as COM. A plugin is a shared library exporting one
+symbol, <code>GetPluginFactory</code>. The host calls it, reads the first machine word of
+the returned pointer as a vtable pointer, and calls through that vtable to
+discover classes, create objects, and push audio buffers.</p>
+
+<p>That contract is small. It is also the only part of Steinberg's SDK a plugin
+strictly needs. Everything else in the SDK is C++ scaffolding around it.</p>
+
+<p>danzig implements the contract directly in Zig. <code>src/vst3.zig</code> declares the
+interfaces as <code>extern struct</code>s of <code>callconv(.c)</code> function pointers, which is
+exactly what a C++ vtable is at the machine level. A plugin fills in the
+function pointers and returns a pointer to the struct. The host cannot tell the
+difference.</p>
+
+<p>The reasons to do this rather than use JUCE:</p>
+
+<p><strong>Fast builds.</strong> A clean build of the library, five example binaries, and both
+architectures of the plugin takes about 5.6 seconds on an M-series Mac. A
+no-change rebuild takes 0.6 seconds, and packaging the universal bundle on top
+of a warm cache takes 0.5 seconds. There is no CMake step and no dependency
+tree.</p>
+
+<p><strong>One binary format decision, made explicitly.</strong> The bundle layout, the
+<code>Info.plist</code>, and the <code>lipo</code> invocation are twenty lines of <code>build.zig</code> you can
+read. Nothing is hidden behind a framework's packaging step.</p>
+
+<p><strong>Allocation is visible.</strong> Zig has no hidden allocations and no destructors that
+run at surprising times. On the audio thread that matters. The parameter store
+in <code>src/params.zig</code> is a fixed array of atomics with no heap involvement at all,
+which you can verify by reading 160 lines.</p>
+
+<p><strong>Cross-compilation is free.</strong> Zig builds <code>x86_64-macos</code> from an arm64 machine
+with no extra toolchain. That is what makes the universal bundle a build step
+rather than a CI matrix: <code>build.zig</code> compiles the plugin for both architectures
+and merges them with <code>lipo</code>, on whichever machine you happen to be on.</p>
+
+<p>macOS is the only supported platform today. The VST3 bundle layout, the
+<code>install-vst3</code> step, and the GUI example are all macOS-specific. The library,
+the unit tests, and the command-line examples are portable Zig and should build
+anywhere Zig runs, though only macOS is tested.</p>
+
+<h2 id="current-state">Current state</h2>
+
+<p>Honest summary, because the difference matters if you are choosing a framework.</p>
+
+<p><strong>Working and tested.</strong></p>
+
+<ul>
+<li>The core library: <code>vst3.zig</code>, <code>plugin.zig</code>, <code>audio.zig</code>, <code>params.zig</code>.</li>
+<li>35 unit tests covering dB conversion, ramps, buffers, and the atomic
+parameter store.</li>
+<li>An integration harness that links the built plugin, calls its exported
+<code>GetPluginFactory</code>, and drives the returned object through the raw C ABI.</li>
+<li>A universal arm64 + x86_64 <code>.vst3</code> bundle that installs into the macOS plugin
+folder and is ad-hoc signed by the linker.</li>
+<li>Three runnable non-plugin examples: an offline WAV processor, an HTTP server
+serving the web UI, and a native window with an embedded WebView and
+CoreAudio device enumeration.</li>
+</ul>
+
+<p><strong>Not finished.</strong></p>
+
+<p>The factory in <code>examples/danzig-gain</code> is a stub. <code>countClasses</code> returns 1, but
+<code>getClassInfo</code> writes nothing into the host's buffer and <code>createInstance</code>
+returns without producing an object. A host therefore scans the bundle, finds
+the entry point, and reports zero usable classes:</p>
+
+<pre data-lang="bash"><code class="language-bash">/Applications/pluginval.app/Contents/MacOS/pluginval \
+  --validate zig-out/DanzigGain.vst3 --strictness-level 5 --timeout-ms 20000</code></pre>
+
+<pre><code>Started validating: .../danzig/zig-out/DanzigGain.vst3
+Random seed: 0x6afa9d8
+Validation started
+Strictness level: 5
+-----------------------------------------------------------------
+Starting tests in: pluginval / Scan for plugins located in: .../DanzigGain.vst3...
+Num plugins found: 0
+!!! Test 1 failed: No types found. This usually means the plugin binary is missing
+or damaged, an incompatible format or that it is an AU that isn't found by macOS
+so can't be created.
+FAILED!!  1 test failed, out of a total of 1
+FAILURE
+*** FAILED</code></pre>
+
+<p>Completing it means filling in <code>getClassInfo</code> with a populated <code>PClassInfo</code>
+(class ID, cardinality, category string, name) and having <code>createInstance</code>
+return objects implementing <code>IComponent</code>, <code>IAudioProcessor</code>, and
+<code>IEditController</code>. The interface declarations for all three already exist in
+<code>src/vst3.zig</code>. The wiring does not.</p>
+
+<p>So: use danzig today as a DSP and parameter library with a working VST3 build
+pipeline. The last mile into a DAW is the open work.</p>
+
+<div class="page-footer">
+  <span><a href="https://github.com/godofecht/danzig">danzig on GitHub</a></span>
+  <a href="architecture.html">Next: Architecture &rarr;</a>
+</div>
+
+</main>
+</body>
+</html>
