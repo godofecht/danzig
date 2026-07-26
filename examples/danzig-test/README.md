@@ -28,14 +28,23 @@ check(factory.vtbl.countClasses(raw.?) == 1, "countClasses reports one exported 
 If the plugin ever stops putting the vtable pointer in the first machine word,
 that dereference fails here rather than inside a DAW.
 
-The checks:
+The checks run the whole plugin lifecycle through the C ABI:
 
-- `GetPluginFactory` returns a non-null object.
-- `countClasses` reports one exported class.
-- `addRef` and `release` move the reference count by exactly one.
-- `queryInterface` for an unknown IID reports failure instead of handing back a
-  garbage pointer.
-- `getFactoryInfo` and `getClassInfo(0)` return `kResultOk`.
+- The module entry point (`bundleEntry`) accepts the load.
+- The factory: `GetPluginFactory`, `countClasses`, `getFactoryInfo`,
+  `getClassInfo`, and `queryInterface` refusing an unknown IID without handing
+  back a garbage pointer.
+- `createInstance` refuses an unknown class id and builds a real object for the
+  advertised one, and that object counts references and hands back
+  `IAudioProcessor` and `IEditController` as distinct interface pointers.
+- The component reports one input and one output bus with two channels and
+  named buses; the controller exposes the gain and bypass parameters and round
+  trips a parameter display string.
+- The processing path: `setupProcessing` at 48 kHz, `setActive`,
+  `setProcessing`, and a `process` call whose output is checked against the DSP,
+  0 dB passing DC at unity, +6 dB scaling by ~1.995, and bypass passing the
+  input through untouched.
+- `terminate`, then releasing the last reference drops the count to zero.
 - The linked static library still converts dB correctly and the `ParamStore`
   reaches full scale.
 
@@ -50,13 +59,24 @@ zig build test-integration
 ```
 danzig integration harness
 
+VST3 module entry
+  ok    bundleEntry accepts the load and reports success
+
 VST3 factory ABI
   ok    GetPluginFactory returns a non-null object
   ok    countClasses reports one exported class
-  ok    addRef/release move the count by exactly one
-  ok    queryInterface for an unknown IID reports failure
-  ok    getFactoryInfo returns kResultOk
-  ok    getClassInfo(0) returns kResultOk
+  ...
+  ok    createInstance accepts the advertised class id
+  ok    createInstance writes a non-null object
+  ok    the object hands back IAudioProcessor
+  ok    the object hands back IEditController
+  ...
+  ok    setupProcessing accepts 48 kHz
+  ok    process returns kResultOk
+  ok    the default 0 dB setting passes DC through at unity
+  ok    a +6 dB gain setting scales DC by ~1.995
+  ok    bypass passes the input through untouched
+  ok    releasing the last reference drops the count to zero
 
 danzig static library
   ok    AudioBuffer reports its geometry
@@ -66,6 +86,8 @@ danzig static library
 
 all integration checks passed
 ```
+
+The run has about fifty checks; the full list prints when you run it.
 
 It exits non-zero if any check fails.
 
@@ -97,10 +119,12 @@ exit=0
 
 ## What it does not check
 
-It does not create a plugin instance, because `createInstance` in
-`examples/danzig-gain` does not yet produce one. When that is implemented, the
-natural next checks are `setupProcessing`, `setActive`, and a `process` call
-against a known input buffer.
+It exercises 32-bit processing on mono and stereo, which is what the plugin
+supports. It does not drive 64-bit processing or an editor view, both of which
+the plugin declines on purpose (`canProcessSampleSize` refuses 64-bit and
+`createView` returns null for the host's generic editor). The full host-side
+validation, including automation and state round-trips under a real host, is
+what `pluginval` covers; see [docs/WIKI.md](../../docs/WIKI.md#current-state).
 
 ---
 
