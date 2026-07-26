@@ -71,7 +71,7 @@ anywhere Zig runs, though only macOS is tested.
 
 ## Current state
 
-Honest summary, because the difference matters if you are choosing a framework.
+danzig builds a VST3 plugin that a host loads, instantiates, and validates.
 
 **Working and tested.**
 
@@ -86,42 +86,32 @@ Honest summary, because the difference matters if you are choosing a framework.
   serving the web UI, and a native window with an embedded WebView and
   CoreAudio device enumeration.
 
-**Not finished.**
+**The plugin validates.**
 
-The factory in `examples/danzig-gain` is a stub. `countClasses` returns 1, but
-`getClassInfo` writes nothing into the host's buffer and `createInstance`
-returns without producing an object. A host therefore scans the bundle, finds
-the entry point, and reports zero usable classes:
+The factory in `examples/danzig-gain` is complete. `getClassInfo` returns a
+populated `PClassInfo`, and `createInstance` builds one object exposing
+`IComponent`, `IAudioProcessor`, and `IEditController` over a shared lock-free
+parameter store. A host scans the bundle, finds the class, and instantiates it.
+pluginval passes at strictness level 5:
 
 ```bash
 /Applications/pluginval.app/Contents/MacOS/pluginval \
-  --validate zig-out/DanzigGain.vst3 --strictness-level 5 --timeout-ms 20000
+  --validate zig-out/DanzigGain.vst3 --strictness-level 5 --timeout-ms 30000
 ```
 
 ```
-Started validating: .../danzig/zig-out/DanzigGain.vst3
-Random seed: 0x6afa9d8
-Validation started
-Strictness level: 5
------------------------------------------------------------------
 Starting tests in: pluginval / Scan for plugins located in: .../DanzigGain.vst3...
-Num plugins found: 0
-!!! Test 1 failed: No types found. This usually means the plugin binary is missing
-or damaged, an incompatible format or that it is an AU that isn't found by macOS
-so can't be created.
-FAILED!!  1 test failed, out of a total of 1
-FAILURE
-*** FAILED
+Num plugins found: 1
+Testing plugin: VST3-Danzig Gain-...
+Superelectric: Danzig Gain v0.1.0
+...
+SUCCESS
 ```
 
-Completing it means filling in `getClassInfo` with a populated `PClassInfo`
-(class ID, cardinality, category string, name) and having `createInstance`
-return objects implementing `IComponent`, `IAudioProcessor`, and
-`IEditController`. The interface declarations for all three already exist in
-`src/vst3.zig`. The wiring does not.
-
-So: use danzig today as a DSP and parameter library with a working VST3 build
-pipeline. The last mile into a DAW is the open work.
+Nineteen test groups run, from instantiation and bus layouts through parameter
+automation and state round-trips, with no failures. So danzig loads in a DAW as
+a working gain plugin, and doubles as a DSP and parameter library with a
+validated VST3 build pipeline.
 
 ---
 
@@ -340,11 +330,11 @@ Architectures in the fat file: /Users/you/Library/Audio/Plug-Ins/VST3/DanzigGain
 
 ### 6. Load it in a DAW
 
-Restart your DAW so it rescans the plugin folder. As of today the scan finds the
-bundle and the entry point but reports no instantiable classes, for the reason
-described under [Current state](#current-state). The bundle structure, the
-universal binary, the `Info.plist`, and the ad-hoc signature are all correct and
-verifiable:
+Restart your DAW so it rescans the plugin folder. The scan finds the bundle,
+instantiates the class, and lists "Danzig Gain" under Superelectric. It also
+passes pluginval at strictness level 5 (see [Current state](#current-state)).
+The bundle structure, the universal binary, the `Info.plist`, and the ad-hoc
+signature are verifiable:
 
 ```bash
 codesign -dvv zig-out/DanzigGain.vst3
@@ -700,13 +690,22 @@ the built `DanzigGain` plugin and calls into it the way a host does.
 ```
 danzig integration harness
 
+VST3 module entry
+  ok    bundleEntry accepts the load and reports success
+
 VST3 factory ABI
   ok    GetPluginFactory returns a non-null object
   ok    countClasses reports one exported class
-  ok    addRef/release move the count by exactly one
-  ok    queryInterface for an unknown IID reports failure
-  ok    getFactoryInfo returns kResultOk
-  ok    getClassInfo(0) returns kResultOk
+  ...
+  ok    createInstance accepts the advertised class id
+  ok    the object hands back IAudioProcessor
+  ok    the object hands back IEditController
+  ...
+  ok    setupProcessing accepts 48 kHz
+  ok    process returns kResultOk
+  ok    the default 0 dB setting passes DC through at unity
+  ok    bypass passes the input through untouched
+  ok    releasing the last reference drops the count to zero
 
 danzig static library
   ok    AudioBuffer reports its geometry
@@ -717,7 +716,10 @@ danzig static library
 all integration checks passed
 ```
 
-The harness declares its own copy of the `IPluginFactory` vtable rather than
+About fifty checks run in all, covering the factory, `createInstance`, the
+interface queries, the bus and parameter reports, and a full
+`setupProcessing`/`setActive`/`process` pass whose output is checked against the
+DSP. The harness declares its own copy of the `IPluginFactory` vtable rather than
 importing the plugin's Zig types. It reads the first word of the returned
 pointer as a vtable pointer and calls through the C function pointers. If the
 object layout ever stops matching what a host expects, the dereference fails
@@ -728,9 +730,9 @@ It returns a non-zero exit code on failure, so `zig build test` fails with it.
 ### CI
 
 `.github/workflows/ci.yml` runs `zig build` and `zig build test` on `macos-15`
-against both 0.14.1 and 0.15.2. The runner is pinned to `macos-15` rather than
-`macos-latest`, because `macos-latest` now ships an Xcode whose SDK Zig 0.14.1
-cannot link against.
+against 0.14.1, 0.15.2, and 0.16.0. The runner is pinned to `macos-15` rather
+than `macos-latest`, because `macos-latest` now ships an Xcode whose SDK Zig
+0.14.1 cannot link against.
 
 ---
 
@@ -778,9 +780,9 @@ If the bundle itself is single-architecture, `zig build vst3` did not run.
 
 ### The DAW does not list the plugin
 
-Expected today. See [Current state](#current-state). The factory's
-`getClassInfo` and `createInstance` are stubs, so a host finds zero classes.
-Confirm the bundle is otherwise sound:
+The plugin validates (see [Current state](#current-state)), so a missing entry
+is usually the host's cache or the install location rather than the bundle.
+First confirm the factory symbol is exported:
 
 ```bash
 nm -gU zig-out/DanzigGain.vst3/Contents/MacOS/DanzigGain | grep -i factory
@@ -788,6 +790,17 @@ nm -gU zig-out/DanzigGain.vst3/Contents/MacOS/DanzigGain | grep -i factory
 
 ```
 00000000000004c8 T _GetPluginFactory
+```
+
+Then check the bundle is in `~/Library/Audio/Plug-Ins/VST3/` (see
+[Install it](#5-install-it)) and force the host to rescan its plugin list. Many
+hosts cache a failed scan, so a bundle fixed after a first bad scan stays hidden
+until the cache is cleared. Validate the copy directly with pluginval to rule
+the bundle in or out:
+
+```bash
+/Applications/pluginval.app/Contents/MacOS/pluginval \
+  --validate ~/Library/Audio/Plug-Ins/VST3/DanzigGain.vst3 --strictness-level 5
 ```
 
 ### `danzig-webui` starts but the browser shows nothing

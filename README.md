@@ -121,12 +121,22 @@ The default Debug build produces the same artifacts at roughly 1 to 2 MB each.
 
 ## Current state
 
-The core library, the tests, the build pipeline, and the non-plugin examples all
-work. The VST3 factory in `examples/danzig-gain` is a stub: `getClassInfo` and
-`createInstance` do not yet produce a class or an object, so a host scans the
-bundle and reports zero plugins. See
-[Current state](docs/WIKI.md#current-state) for the detail and for what
-finishing it involves.
+The core library, the tests, the build pipeline, the examples, and the VST3
+plugin all work. `examples/danzig-gain` builds a universal `.vst3` bundle that a
+host loads and instantiates, and it passes pluginval at strictness level 5:
+
+```
+pluginval --validate zig-out/DanzigGain.vst3 --strictness-level 5
+Num plugins found: 1
+Testing plugin: VST3-Danzig Gain
+...
+SUCCESS
+```
+
+The factory returns a populated `PClassInfo`, and `createInstance` builds one
+object exposing `IComponent`, `IAudioProcessor`, and `IEditController` over a
+shared lock-free parameter store. See
+[Current state](docs/WIKI.md#current-state) for the detail.
 
 ## Documentation
 
