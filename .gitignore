@@ -3,11 +3,29 @@ zig-out/
 .zig-cache/
 zig-cache/
 
+# Zig package fetch scratch directories
+zig-pkg/
+.tmp-*/
+
 # Built plugin bundles
 *.vst3/
+*.vst3
+*.component/
+*.clap
+
+# Native build artifacts
+*.o
+*.a
+*.dylib
+*.so
+*.dll
+*.lib
+*.exe
+*.pdb
 
 # macOS
 .DS_Store
+._*
 
 # Audio test artifacts produced by the standalone processor
 *.wav
