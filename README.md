@@ -140,6 +140,8 @@ shared lock-free parameter store. See
 
 ## Documentation
 
+Published at [godofecht.github.io/danzig](https://godofecht.github.io/danzig/).
+
 - **[docs/WIKI.md](docs/WIKI.md)**. The single-page guide. Architecture,
   quickstart, parameters, audio helpers, bundle packaging, testing,
   troubleshooting.
