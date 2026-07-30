@@ -2,6 +2,7 @@
     .name = .danzig,
     .version = "0.1.0",
     .fingerprint = 0x6383fbb1d610c5a6,
+    .minimum_zig_version = "0.14.0",
     .dependencies = .{
         .webview = .{
             .url = "https://github.com/thechampagne/webview-zig/archive/a5eef0bbff65c914ea893dae0816b956bcdee6c6.tar.gz",

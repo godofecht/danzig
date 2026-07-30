@@ -147,6 +147,23 @@ Published at [godofecht.github.io/danzig](https://godofecht.github.io/danzig/).
   troubleshooting.
 - [docs/INDEX.md](docs/INDEX.md). The older multi-page docs.
 
+## Install as a dependency
+
+Fetch danzig into a Zig project:
+
+```sh
+zig fetch --save git+https://github.com/godofecht/danzig
+```
+
+Then wire the module in your `build.zig`:
+
+```zig
+const danzig = b.dependency("danzig", .{});
+your_plugin.root_module.addImport("danzig", danzig.module("danzig"));
+```
+
+Requires Zig 0.14.1, 0.15.2, or 0.16.0.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
