@@ -18,6 +18,8 @@
         "build.zig.zon",
         "src",
         "examples",
+        "wrappers",
+        "scripts",
         "ui",
     },
 }
