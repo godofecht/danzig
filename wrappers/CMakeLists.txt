@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 project(DanzigFormatWrappers LANGUAGES C CXX OBJC OBJCXX)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
+set(CLAP_WRAPPER_CXX_STANDARD 20 CACHE STRING "C++ standard for wrapper and Apple AudioUnitSDK" FORCE)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (NOT APPLE)
