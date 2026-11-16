@@ -22,6 +22,12 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/root.zig"),
     });
 
+    // Share the format-neutral DSP across format-specific Zig modules.
+    const gain_core = b.addModule("gain_core", .{
+        .root_source_file = b.path("examples/danzig-gain/dsp.zig"),
+    });
+    gain_core.addImport("danzig", danzig_module);
+
     // Danzig gain VST3 plugin (shared, embeds danzig)
     const danzig_gain = b.addLibrary(.{
         .name = "DanzigGain",
@@ -49,6 +55,7 @@ pub fn build(b: *std.Build) void {
         .linkage = .dynamic,
     });
     danzig_clap.root_module.addImport("danzig", danzig_module);
+    danzig_clap.root_module.addImport("gain_core", gain_core);
     b.installArtifact(danzig_clap);
 
     // Execute the CLAP factory and DSP through the exported C ABI.
@@ -160,7 +167,7 @@ pub fn build(b: *std.Build) void {
     // because it doubles compile work and only applies to macOS.
     if (target.result.os.tag == .macos) {
         addVst3Bundle(b, optimize, danzig_module);
-        addClapBundle(b, optimize, danzig_module);
+        addClapBundle(b, optimize, danzig_module, gain_core);
     }
 
     // --- GUI example (macOS) -------------------------------------------------
@@ -351,6 +358,7 @@ fn addClapBundle(
     b: *std.Build,
     optimize: std.builtin.OptimizeMode,
     danzig_module: *std.Build.Module,
+    gain_core: *std.Build.Module,
 ) void {
     const arches = [_]std.Target.Cpu.Arch{ .aarch64, .x86_64 };
     const suffixes = [_][]const u8{ "arm64", "x86" };
@@ -368,6 +376,7 @@ fn addClapBundle(
             .linkage = .dynamic,
         });
         plugin.root_module.addImport("danzig", danzig_module);
+        plugin.root_module.addImport("gain_core", gain_core);
         lipo.addArtifactArg(plugin);
     }
 
