@@ -33,7 +33,7 @@ protocol. The wrapper registers as an **effect** (`aufx`), not an instrument
 On macOS, install Zig, CMake and Xcode command-line tools, then clone
 [free-audio/clap](https://github.com/free-audio/clap),
 [free-audio/clap-wrapper](https://github.com/free-audio/clap-wrapper), and
-[apple/AudioUnitSDK](https://github.com/apple/AudioUnitSDK).
+[apple/AudioUnitSDK](https://github.com/apple/AudioUnitSDK) (version 1.3.0; commit `e789bc83ddc07cbf80e7bfaf84f1ade975287400` for the CI-tested build).
 
 ```sh
 export CLAP_WRAPPER_SOURCE="$HOME/src/clap-wrapper"
