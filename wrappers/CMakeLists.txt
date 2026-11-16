@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
-project(DanzigFormatWrappers LANGUAGES C CXX)
+project(DanzigFormatWrappers LANGUAGES C CXX OBJC OBJCXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (NOT APPLE)
     message(FATAL_ERROR "This wrapper project builds AUv2 on macOS. AAX Windows builds can use clap-wrapper directly.")
