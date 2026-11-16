@@ -34,3 +34,10 @@ jobs:
           test -f "$component/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c "Print :AudioComponents" "$component/Contents/Info.plist" || true
           echo "Built: $component"
+      - name: Validate AUv2 through Apple auval
+        run: |
+          component="$(find zig-out/format-wrappers -type d -name DanzigGain.component -print -quit)"
+          codesign --force --deep --sign - "$component"
+          mkdir -p "$HOME/Library/Audio/Plug-Ins/Components"
+          cp -R "$component" "$HOME/Library/Audio/Plug-Ins/Components/"
+          auval -v aufx DzGn SuEl
