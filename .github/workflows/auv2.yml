@@ -40,4 +40,12 @@ jobs:
           codesign --force --deep --sign - "$component"
           mkdir -p "$HOME/Library/Audio/Plug-Ins/Components"
           cp -R "$component" "$HOME/Library/Audio/Plug-Ins/Components/"
+          killall -9 AudioComponentRegistrar 2>/dev/null || true
+          for attempt in 1 2 3 4 5; do
+            if auval -a | grep -Eq 'aufx[[:space:]]+DzGn[[:space:]]+SuEl'; then
+              break
+            fi
+            sleep 3
+          done
+          auval -a
           auval -v aufx DzGn SuEl
