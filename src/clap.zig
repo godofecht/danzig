@@ -162,7 +162,7 @@ test "CLAP ABI structure sizes" {
     try std.testing.expectEqual(@as(usize, 16), @sizeOf(EventHeader));
     if (@sizeOf(usize) == 8) {
         try std.testing.expectEqual(@as(usize, 56), @sizeOf(EventParamValue));
-        try std.testing.expectEqual(@as(usize, 40), @sizeOf(AudioBuffer));
-        try std.testing.expectEqual(@as(usize, 104), @sizeOf(Plugin));
+        try std.testing.expectEqual(@as(usize, 32), @sizeOf(AudioBuffer));
+        try std.testing.expectEqual(@as(usize, 96), @sizeOf(Plugin));
     }
 }
