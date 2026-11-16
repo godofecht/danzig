@@ -19,7 +19,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/audio-sdks"
           git clone --depth 1 https://github.com/free-audio/clap.git "$RUNNER_TEMP/audio-sdks/clap"
           git clone --depth 1 --recurse-submodules --branch v0.15.1 https://github.com/free-audio/clap-wrapper.git "$RUNNER_TEMP/audio-sdks/clap-wrapper"
-          git clone --depth 1 https://github.com/apple/AudioUnitSDK.git "$RUNNER_TEMP/audio-sdks/AudioUnitSDK"
+          git clone https://github.com/apple/AudioUnitSDK.git "$RUNNER_TEMP/audio-sdks/AudioUnitSDK"
+          git -C "$RUNNER_TEMP/audio-sdks/AudioUnitSDK" checkout e789bc83ddc07cbf80e7bfaf84f1ade975287400
       - name: Build Danzig AUv2 component
         env:
           CLAP_WRAPPER_SOURCE: ${{ runner.temp }}/audio-sdks/clap-wrapper
