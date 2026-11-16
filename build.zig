@@ -51,6 +51,22 @@ pub fn build(b: *std.Build) void {
     danzig_clap.root_module.addImport("danzig", danzig_module);
     b.installArtifact(danzig_clap);
 
+    // Execute the CLAP factory and DSP through the exported C ABI.
+    const clap_test = b.addExecutable(.{
+        .name = "danzig_clap_test",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("examples/danzig-clap-test/root.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    clap_test.root_module.addImport("danzig", danzig_module);
+    clap_test.root_module.linkLibrary(danzig_clap);
+    b.installArtifact(clap_test);
+    const run_clap_test = b.addRunArtifact(clap_test);
+    const clap_test_step = b.step("test-clap", "Run CLAP ABI integration tests");
+    clap_test_step.dependOn(&run_clap_test.step);
+
     // Integration harness. Links the plugin itself so it can call the exported
     // GetPluginFactory entry point and drive it through the raw VST3 C ABI.
     const danzig_test = b.addExecutable(.{
@@ -183,6 +199,7 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_unit_tests.step);
     test_step.dependOn(&run_test.step);
+    test_step.dependOn(&run_clap_test.step);
 }
 
 /// Build DanzigGain for both macOS architectures, merge them into one
