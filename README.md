@@ -3,12 +3,12 @@
 [![CI](https://github.com/godofecht/danzig/actions/workflows/ci.yml/badge.svg)](https://github.com/godofecht/danzig/actions/workflows/ci.yml)
 [![Zig](https://img.shields.io/badge/zig-0.14.1%20%7C%200.15.2%20%7C%200.16.0-f7a41d)](https://ziglang.org/)
 
-A VST3 plugin framework in pure Zig. No JUCE, no Steinberg SDK, no C++ in the
-core. `src/vst3.zig` implements the VST3 C ABI directly as `extern struct`s of
+A VST3 and CLAP plugin framework in pure Zig. No JUCE, no Steinberg SDK, no C++ in the
+core. AUv2 and AAX builds are available through optional external CLAP wrappers. `src/vst3.zig` implements the VST3 C ABI directly as `extern struct`s of
 `callconv(.c)` function pointers, which is what a C++ vtable is at the machine
 level.
 
-**[Read the guide: docs/WIKI.md](docs/WIKI.md)**
+**[Read the guide: docs/WIKI.md](docs/WIKI.md)** | **[Plugin formats: CLAP / AU / AAX](docs/FORMATS.md)**
 
 ## Setup
 
@@ -27,8 +27,11 @@ By hand:
 ```bash
 zig build                     # Build Summary: 29/29 steps succeeded
 zig build test --summary all  # Build Summary: 9/9 steps succeeded; 35/35 tests passed
-zig build vst3                # universal arm64 + x86_64 bundle in zig-out/
+zig build vst3                # universal arm64 + x86_64 VST3 bundle in zig-out/
+zig build clap                # universal arm64 + x86_64 CLAP bundle
+zig build test-clap           # CLAP factory and processing integration test
 zig build install-vst3        # copy it to ~/Library/Audio/Plug-Ins/VST3/
+zig build install-clap        # copy it to ~/Library/Audio/Plug-Ins/CLAP/
 ```
 
 Then:
@@ -54,6 +57,7 @@ Architectures in the fat file: zig-out/DanzigGain.vst3/Contents/MacOS/DanzigGain
 
 | File | Contents |
 |---|---|
+| `clap.zig` | The CLAP 1.x C ABI, plugin lifecycle, parameters, audio buses, events and state interfaces. |
 | `vst3.zig` | The VST3 C ABI: `IUnknown`, `IPluginBase`, `IComponent`, `IAudioProcessor`, `IEditController`, and the structs they pass. |
 | `plugin.zig` | Plugin lifecycle and a heap-backed `ParameterMap`. |
 | `audio.zig` | `dBToLinear`, `GainProcessor`, `SimpleRamp`, `AudioBuffer`. |
@@ -66,6 +70,8 @@ Architectures in the fat file: zig-out/DanzigGain.vst3/Contents/MacOS/DanzigGain
 |---|---|
 | [danzig-minimal](examples/danzig-minimal/). The smallest complete plugin, and the file to copy. | `zig build run-minimal` |
 | [danzig-gain](examples/danzig-gain/). The plugin packaged into the `.vst3` bundle. | `zig build vst3` |
+| [danzig-gain-clap](examples/danzig-gain-clap/). Shared gain DSP exported through the CLAP ABI. | `zig build clap` |
+| [danzig-clap-test](examples/danzig-clap-test/). CLAP factory, parameters and processing test. | `zig build test-clap` |
 | [danzig-test](examples/danzig-test/). Drives the built plugin through the raw VST3 C ABI. | `zig build test-integration` |
 | [danzig-gain-standalone](examples/danzig-gain-standalone/). Offline WAV gain processing. | `zig build run-standalone` |
 | [danzig-webui](examples/danzig-webui/). An HTTP server in pure `std.net`. | `./zig-out/bin/danzig-webui` |
@@ -121,8 +127,10 @@ The default Debug build produces the same artifacts at roughly 1 to 2 MB each.
 
 ## Current state
 
-The core library, the tests, the build pipeline, the examples, and the VST3
-plugin all work. `examples/danzig-gain` builds a universal `.vst3` bundle that a
+The existing VST3 implementation has passed host validation. The CLAP adapter
+and AUv2/AAX wrapper build configurations are being validated separately; see
+[format-specific status and requirements](docs/FORMATS.md). The VST3
+core library, tests and build pipeline remain available. `examples/danzig-gain` builds a universal `.vst3` bundle that a
 host loads and instantiates, and it passes pluginval at strictness level 5:
 
 ```
@@ -142,6 +150,8 @@ shared lock-free parameter store. See
 
 Published at [godofecht.github.io/danzig](https://godofecht.github.io/danzig/).
 
+- **[docs/FORMATS.md](docs/FORMATS.md)**. CLAP and external AUv2/AAX wrappers,
+  packaging, signing and validation.
 - **[docs/WIKI.md](docs/WIKI.md)**. The single-page guide. Architecture,
   quickstart, parameters, audio helpers, bundle packaging, testing,
   troubleshooting.
