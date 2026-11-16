@@ -1,7 +1,7 @@
 // Danzig Gain CLAP adapter. DSP and parameter storage are shared with the VST3 example.
 const std = @import("std");
 const clap = @import("danzig").clap;
-const core = @import("../danzig-gain/dsp.zig");
+const core = @import("gain_core");
 
 const plugin_id = "dev.superelectric.danzig.gain";
 const features = [_]?[*:0]const u8{ "audio-effect", "stereo", null };
