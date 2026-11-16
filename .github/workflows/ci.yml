@@ -39,3 +39,6 @@ jobs:
       # Drives the built plugin through the raw VST3 C ABI.
       - name: Test
         run: zig build test
+
+      - name: Package CLAP
+        run: zig build clap

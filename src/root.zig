@@ -1,6 +1,7 @@
 // Danzig VST3 Library Root
 
 pub const vst3 = @import("vst3.zig");
+pub const clap = @import("clap.zig");
 pub const plugin = @import("plugin.zig");
 pub const audio = @import("audio.zig");
 pub const params = @import("params.zig");

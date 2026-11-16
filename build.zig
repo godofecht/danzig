@@ -22,6 +22,12 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/root.zig"),
     });
 
+    // Share the format-neutral DSP across format-specific Zig modules.
+    const gain_core = b.addModule("gain_core", .{
+        .root_source_file = b.path("examples/danzig-gain/dsp.zig"),
+    });
+    gain_core.addImport("danzig", danzig_module);
+
     // Danzig gain VST3 plugin (shared, embeds danzig)
     const danzig_gain = b.addLibrary(.{
         .name = "DanzigGain",
@@ -37,6 +43,36 @@ pub fn build(b: *std.Build) void {
 
     // Install to zig-out/lib/
     b.installArtifact(danzig_gain);
+
+    // Native CLAP dynamic library. macOS bundle packaging is a separate step.
+    const danzig_clap = b.addLibrary(.{
+        .name = "DanzigGainCLAP",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("examples/danzig-gain-clap/root.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+        .linkage = .dynamic,
+    });
+    danzig_clap.root_module.addImport("danzig", danzig_module);
+    danzig_clap.root_module.addImport("gain_core", gain_core);
+    b.installArtifact(danzig_clap);
+
+    // Execute the CLAP factory and DSP through the exported C ABI.
+    const clap_test = b.addExecutable(.{
+        .name = "danzig_clap_test",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("examples/danzig-clap-test/root.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    clap_test.root_module.addImport("danzig", danzig_module);
+    clap_test.root_module.linkLibrary(danzig_clap);
+    b.installArtifact(clap_test);
+    const run_clap_test = b.addRunArtifact(clap_test);
+    const clap_test_step = b.step("test-clap", "Run CLAP ABI integration tests");
+    clap_test_step.dependOn(&run_clap_test.step);
 
     // Integration harness. Links the plugin itself so it can call the exported
     // GetPluginFactory entry point and drive it through the raw VST3 C ABI.
@@ -131,6 +167,7 @@ pub fn build(b: *std.Build) void {
     // because it doubles compile work and only applies to macOS.
     if (target.result.os.tag == .macos) {
         addVst3Bundle(b, optimize, danzig_module);
+        addClapBundle(b, optimize, danzig_module, gain_core);
     }
 
     // --- GUI example (macOS) -------------------------------------------------
@@ -169,6 +206,7 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_unit_tests.step);
     test_step.dependOn(&run_test.step);
+    test_step.dependOn(&run_clap_test.step);
 }
 
 /// Build DanzigGain for both macOS architectures, merge them into one
@@ -310,6 +348,83 @@ fn infoPlist(b: *std.Build) []const u8 {
         \\</dict>
         \\</plist>
         \\
+    ;
+    return b.fmt(template, .{ VERSION, VERSION });
+}
+
+
+/// Build a universal macOS CLAP bundle containing the same DSP used by VST3.
+fn addClapBundle(
+    b: *std.Build,
+    optimize: std.builtin.OptimizeMode,
+    danzig_module: *std.Build.Module,
+    gain_core: *std.Build.Module,
+) void {
+    const arches = [_]std.Target.Cpu.Arch{ .aarch64, .x86_64 };
+    const suffixes = [_][]const u8{ "arm64", "x86" };
+    const lipo = b.addSystemCommand(&.{ "lipo", "-create" });
+
+    inline for (arches, suffixes) |arch, suffix| {
+        const arch_target = b.resolveTargetQuery(.{ .cpu_arch = arch, .os_tag = .macos });
+        const plugin = b.addLibrary(.{
+            .name = "DanzigGainCLAP_" ++ suffix,
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("examples/danzig-gain-clap/root.zig"),
+                .target = arch_target,
+                .optimize = optimize,
+            }),
+            .linkage = .dynamic,
+        });
+        plugin.root_module.addImport("danzig", danzig_module);
+        plugin.root_module.addImport("gain_core", gain_core);
+        lipo.addArtifactArg(plugin);
+    }
+
+    lipo.addArg("-output");
+    const universal = lipo.addOutputFileArg("DanzigGain");
+    const bundle = b.addWriteFiles();
+    _ = bundle.add("Contents/Info.plist", clapInfoPlist(b));
+    _ = bundle.add("Contents/PkgInfo", "BNDL????");
+    _ = bundle.addCopyFile(universal, "Contents/MacOS/DanzigGain");
+
+    const package = b.addInstallDirectory(.{
+        .source_dir = bundle.getDirectory(),
+        .install_dir = .prefix,
+        .install_subdir = "DanzigGain.clap",
+    });
+    const clap_step = b.step("clap", "Build the universal macOS CLAP plugin");
+    clap_step.dependOn(&package.step);
+
+    const install = b.addSystemCommand(&.{
+        "sh", "-c",
+        "mkdir -p \"$HOME/Library/Audio/Plug-Ins/CLAP\" && rm -rf \"$HOME/Library/Audio/Plug-Ins/CLAP/DanzigGain.clap\" && cp -R \"$1\" \"$HOME/Library/Audio/Plug-Ins/CLAP/DanzigGain.clap\"",
+        "sh",
+    });
+    install.addDirectoryArg(bundle.getDirectory());
+    const install_step = b.step("install-clap", "Install CLAP to ~/Library/Audio/Plug-Ins/CLAP/");
+    install_step.dependOn(&install.step);
+}
+
+fn clapInfoPlist(b: *std.Build) []const u8 {
+    const template =
+        \\<?xml version="1.0" encoding="UTF-8"?>
+        \\<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        \\<plist version="1.0">
+        \\<dict>
+        \\    <key>CFBundleExecutable</key>
+        \\    <string>DanzigGain</string>
+        \\    <key>CFBundleIdentifier</key>
+        \\    <string>dev.superelectric.danzig.gain.clap</string>
+        \\    <key>CFBundleName</key>
+        \\    <string>DanzigGain</string>
+        \\    <key>CFBundlePackageType</key>
+        \\    <string>BNDL</string>
+        \\    <key>CFBundleVersion</key>
+        \\    <string>{s}</string>
+        \\    <key>CFBundleShortVersionString</key>
+        \\    <string>{s}</string>
+        \\</dict>
+        \\</plist>
     ;
     return b.fmt(template, .{ VERSION, VERSION });
 }

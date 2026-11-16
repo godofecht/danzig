@@ -1,0 +1,51 @@
+name: AUv2 wrapper
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-auv2:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: "0.15.2"
+      - name: Checkout public wrapper dependencies
+        run: |
+          mkdir -p "$RUNNER_TEMP/audio-sdks"
+          git clone --depth 1 https://github.com/free-audio/clap.git "$RUNNER_TEMP/audio-sdks/clap"
+          git clone --depth 1 --recurse-submodules --branch v0.15.1 https://github.com/free-audio/clap-wrapper.git "$RUNNER_TEMP/audio-sdks/clap-wrapper"
+          git clone https://github.com/apple/AudioUnitSDK.git "$RUNNER_TEMP/audio-sdks/AudioUnitSDK"
+          git -C "$RUNNER_TEMP/audio-sdks/AudioUnitSDK" checkout e789bc83ddc07cbf80e7bfaf84f1ade975287400
+      - name: Build Danzig AUv2 component
+        env:
+          CLAP_WRAPPER_SOURCE: ${{ runner.temp }}/audio-sdks/clap-wrapper
+          CLAP_SDK_ROOT: ${{ runner.temp }}/audio-sdks/clap
+          AUDIOUNIT_SDK_ROOT: ${{ runner.temp }}/audio-sdks/AudioUnitSDK
+        run: bash scripts/build-wrappers.sh
+      - name: Inspect Audio Unit bundle
+        run: |
+          component="$(find zig-out/format-wrappers -type d -name DanzigGain.component -print -quit)"
+          test -n "$component"
+          test -f "$component/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Print :AudioComponents" "$component/Contents/Info.plist" || true
+          echo "Built: $component"
+      - name: Validate AUv2 through Apple auval
+        run: |
+          component="$(find zig-out/format-wrappers -type d -name DanzigGain.component -print -quit)"
+          codesign --force --deep --sign - "$component"
+          mkdir -p "$HOME/Library/Audio/Plug-Ins/Components"
+          cp -R "$component" "$HOME/Library/Audio/Plug-Ins/Components/"
+          killall -9 AudioComponentRegistrar 2>/dev/null || true
+          for attempt in 1 2 3 4 5; do
+            if auval -a | grep -Eq 'aufx[[:space:]]+DzGn[[:space:]]+SuEl'; then
+              break
+            fi
+            sleep 3
+          done
+          auval -a
+          auval -v aufx DzGn SuEl
